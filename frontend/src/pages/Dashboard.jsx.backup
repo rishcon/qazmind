@@ -1,0 +1,370 @@
+import { useNavigate } from 'react-router-dom';
+import { useLanguageStore } from '../store/languageStore';
+import { useAuthStore } from '../store/authStore';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import SubjectSelector from '../components/SubjectSelector';
+import { StatCard, SubjectStatCard, RecommendationCard } from '../components/StatCards';
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { language } = useLanguageStore();
+  const { token } = useAuthStore();
+  const [profile, setProfile] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showSubjectSelector, setShowSubjectSelector] = useState(false);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Загружаем профиль пользователя
+      const profileResponse = await axios.get('/api/profile/me', { headers });
+      console.log('Profile loaded:', profileResponse.data);
+      setProfile(profileResponse.data);
+
+      // Если пользователь еще не выбрал предметы, показываем селектор
+      if (!profileResponse.data.profile_completed || !profileResponse.data.selected_subjects?.length) {
+        setShowSubjectSelector(true);
+      }
+
+      // Загружаем статистику
+      const statsResponse = await axios.get('/api/profile/stats', { headers });
+      console.log('Stats loaded:', statsResponse.data);
+      setStats(statsResponse.data);
+
+      // Загружаем рекомендации
+      const recsResponse = await axios.get('/api/profile/recommendations', { headers });
+      console.log('Recommendations loaded:', recsResponse.data);
+      setRecommendations(recsResponse.data);
+
+      // Загружаем все предметы
+      const subjectsResponse = await axios.get('/api/admin/subjects');
+      console.log('Subjects loaded:', subjectsResponse.data);
+      setSubjects(subjectsResponse.data);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubjectSelectionComplete = () => {
+    setShowSubjectSelector(false);
+    loadDashboardData(); // Перезагружаем данные
+  };
+
+  const handleStartTest = (subjectId) => {
+    navigate(`/test/${subjectId}`);
+  };
+
+  const getDaysUntilENT = () => {
+    if (!profile?.ent_date) return null;
+    const today = new Date();
+    const entDate = new Date(profile.ent_date);
+    const diffTime = entDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const getSelectedSubjects = () => {
+    if (!profile?.selected_subjects || !subjects.length) return [];
+    return subjects.filter(s => profile.selected_subjects.includes(s.id));
+  };
+
+  const getSubjectStats = (subjectId) => {
+    if (!stats?.subjects_stats) return null;
+    return stats.subjects_stats.find(s => s.subject_id === subjectId);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-32 bg-gray-200 rounded-2xl"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded-xl"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedSubjects = getSelectedSubjects();
+  const daysUntilENT = getDaysUntilENT();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <SubjectSelector
+        isOpen={showSubjectSelector}
+        onClose={() => setShowSubjectSelector(false)}
+        onComplete={handleSubjectSelectionComplete}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {/* Приветственный баннер */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-white shadow-lg">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                {language === 'kz' ? 'Сәлеметсіз бе! 👋' : 'Здравствуйте! 👋'}
+              </h1>
+              <p className="text-indigo-100">
+                {language === 'kz' 
+                  ? 'ЕНТ-ға дайындалуды жалғастырайық' 
+                  : 'Продолжим подготовку к ЕНТ'}
+              </p>
+            </div>
+            <div className="flex gap-4">
+              {daysUntilENT !== null && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-4 text-center">
+                  <div className="text-3xl font-bold">{daysUntilENT}</div>
+                  <div className="text-sm text-indigo-100">
+                    {language === 'kz' ? 'күн қалды' : 'дней до ЕНТ'}
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowSubjectSelector(true)}
+                className="bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-lg px-6 py-4 transition flex items-center gap-2"
+              >
+                <span>⚙️</span>
+                <span>{language === 'kz' ? 'Пәндер' : 'Предметы'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Общая статистика */}
+        {stats && stats.total_tests > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon="📝"
+              title={language === 'kz' ? 'Барлық тестер' : 'Всего тестов'}
+              value={stats.total_tests}
+              subtitle={`${stats.total_questions} ${language === 'kz' ? 'сұрақ' : 'вопросов'}`}
+              color="indigo"
+            />
+            <StatCard
+              icon="✅"
+              title={language === 'kz' ? 'Дұрыс жауаптар' : 'Верных ответов'}
+              value={stats.total_correct}
+              subtitle={`${stats.average_score.toFixed(0)}% ${language === 'kz' ? 'дәлдік' : 'точность'}`}
+              color="green"
+            />
+            <StatCard
+              icon="⏱️"
+              title={language === 'kz' ? 'Оқу уақыты' : 'Время обучения'}
+              value={`${Math.floor(stats.study_time_minutes / 60)}ч`}
+              subtitle={`${stats.study_time_minutes % 60}мин`}
+              color="purple"
+            />
+            <StatCard
+              icon="🎯"
+              title={language === 'kz' ? 'Күнделікті мақсат' : 'Дневная цель'}
+              value={`${profile?.daily_goal_minutes || 30}м`}
+              subtitle={language === 'kz' ? 'Күн сайын' : 'Каждый день'}
+              color="yellow"
+            />
+          </div>
+        )}
+
+        {/* Рекомендации */}
+        {recommendations.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span>💡</span>
+              {language === 'kz' ? 'Ұсыныстар' : 'Рекомендации'}
+            </h2>
+            <div className="space-y-3">
+              {recommendations.map((rec, idx) => (
+                <RecommendationCard key={idx} recommendation={rec} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Приветственный блок для новых пользователей */}
+        {stats && stats.total_tests === 0 && selectedSubjects.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🎯</div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {language === 'kz' ? 'Дайындықты бастайық!' : 'Начнём подготовку!'}
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                {language === 'kz' 
+                  ? 'Сіз ' + selectedSubjects.length + ' пән таңдадыңыз. Енді бірінші тестті тапсырып, өз деңгейіңізді анықтаңыз!'
+                  : 'Вы выбрали ' + selectedSubjects.length + ' предметов. Теперь пройдите первый тест, чтобы определить свой уровень!'}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-4 text-center">
+                <div className="text-3xl mb-2">📊</div>
+                <div className="font-semibold text-gray-900 mb-1">
+                  {language === 'kz' ? 'Статистика' : 'Статистика'}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {language === 'kz' ? 'Прогресті қадағалаңыз' : 'Отслеживайте прогресс'}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 text-center">
+                <div className="text-3xl mb-2">🤖</div>
+                <div className="font-semibold text-gray-900 mb-1">
+                  {language === 'kz' ? 'AI түсіндірулер' : 'AI объяснения'}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {language === 'kz' ? 'Қателерді талдаңыз' : 'Разбирайте ошибки'}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 text-center">
+                <div className="text-3xl mb-2">🎧</div>
+                <div className="font-semibold text-gray-900 mb-1">
+                  {language === 'kz' ? 'Подкастар' : 'Подкасты'}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {language === 'kz' ? 'Тақырыптарды тыңдаңыз' : 'Слушайте темы'}
+                </div>
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-4">
+                {language === 'kz' ? '👇 Төмендегі пәндерден бірін таңдап тестті бастаңыз' : '👇 Выберите предмет ниже и начните тест'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Предметы и статистика по ним */}
+        {selectedSubjects.length > 0 ? (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {language === 'kz' ? 'Менің пәндерім' : 'Мои предметы'}
+              </h2>
+              {stats && stats.total_tests === 0 && (
+                <div className="text-sm text-gray-500 bg-blue-50 px-4 py-2 rounded-lg">
+                  💡 {language === 'kz' 
+                    ? 'Бірінші тестті бастап статистика жинауды бастаңыз' 
+                    : 'Начните первый тест, чтобы накапливать статистику'}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {selectedSubjects.map(subject => {
+                const subjectStats = getSubjectStats(subject.id);
+                if (!subjectStats) {
+                  // Если нет статистики, показываем карточку "начать"
+                  return (
+                    <div key={subject.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition">
+                      <div className="flex items-center mb-4">
+                        <span className="text-3xl mr-3">{subject.icon}</span>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {language === 'kz' ? subject.name_kz : subject.name_ru}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {subject.questions_count} {language === 'kz' ? 'сұрақ' : 'вопросов'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-3">🚀</div>
+                        <p className="text-gray-500 mb-4">
+                          {language === 'kz' ? 'Бірінші тестті бастаңыз' : 'Начните первый тест'}
+                        </p>
+                        <button
+                          onClick={() => handleStartTest(subject.id)}
+                          className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
+                        >
+                          {language === 'kz' ? 'Бастау' : 'Начать'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <SubjectStatCard
+                    key={subject.id}
+                    subject={subject}
+                    stats={subjectStats}
+                    onStartTest={handleStartTest}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+            <div className="text-6xl mb-4">📚</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {language === 'kz' ? 'Пәндерді таңдаңыз' : 'Выберите предметы'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {language === 'kz' 
+                ? 'Бастау үшін дайындалатын пәндеріңізді таңдаңыз' 
+                : 'Выберите предметы для подготовки, чтобы начать'}
+            </p>
+            <button
+              onClick={() => setShowSubjectSelector(true)}
+              className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+            >
+              {language === 'kz' ? 'Пәндерді таңдау' : 'Выбрать предметы'}
+            </button>
+          </div>
+        )}
+
+        {/* Последние тесты */}
+        {stats?.recent_tests && stats.recent_tests.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              {language === 'kz' ? 'Соңғы тестер' : 'Последние тесты'}
+            </h2>
+            <div className="space-y-3">
+              {stats.recent_tests.map((test, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{test.subject_icon}</span>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {language === 'kz' ? test.subject_name_kz : test.subject_name_ru}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(test.completed_at).toLocaleDateString(language === 'kz' ? 'kk-KZ' : 'ru-RU')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-indigo-600">{test.score}%</div>
+                    <div className="text-sm text-gray-500">
+                      {test.total_correct}/{test.total_questions}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,14 @@
+fastapi==0.109.2
+uvicorn[standard]==0.27.0
+sqlalchemy==2.0.48
+psycopg2-binary==2.9.11
+pydantic==2.12.5
+pydantic-settings==2.13.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+openai==1.44.0
+sqladmin==0.16.0
+python-dotenv==1.0.0
+requests==2.31.0
+email-validator==2.3.0

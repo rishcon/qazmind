@@ -1,0 +1,280 @@
+// Этот файл содержит компактную версию Dashboard для замены
+// Скопируйте содержимое в Dashboard.jsx, заменив все после строки 85 (после getSubjectPodcasts)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-32 bg-gray-200 rounded-2xl"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-40 bg-gray-200 rounded-xl"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedSubjects = getSelectedSubjects();
+  const daysUntilENT = getDaysUntilENT();
+  const subjectPodcasts = getSubjectPodcasts();
+  const topRecommendations = recommendations.filter(r => r.priority === 'high').slice(0, 2);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <SubjectSelector
+        isOpen={showSubjectSelector}
+        onClose={() => setShowSubjectSelector(false)}
+        onComplete={handleSubjectSelectionComplete}
+      />
+
+      {/* Модальное окно статистики */}
+      <Modal
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        title={language === 'kz' ? 'Толық статистика' : 'Полная статистика'}
+        size="large"
+      >
+        {stats && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                <div className="text-3xl font-bold text-indigo-600">{stats.total_tests}</div>
+                <div className="text-sm text-gray-600">{language === 'kz' ? 'Тестер' : 'Тестов'}</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-3xl font-bold text-green-600">{stats.total_correct}</div>
+                <div className="text-sm text-gray-600">{language === 'kz' ? 'Дұрыс' : 'Верно'}</div>
+              </div>
+              <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                <div className="text-3xl font-bold text-yellow-600">{stats.average_score.toFixed(0)}%</div>
+                <div className="text-sm text-gray-600">{language === 'kz' ? 'Дәлдік' : 'Точность'}</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-3xl font-bold text-purple-600">{stats.study_time_minutes}м</div>
+                <div className="text-sm text-gray-600">{language === 'kz' ? 'Уақыт' : 'Время'}</div>
+              </div>
+            </div>
+
+            {stats.recent_tests && stats.recent_tests.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">{language === 'kz' ? 'Соңғы тестер' : 'Последние тесты'}</h3>
+                <div className="space-y-2">
+                  {stats.recent_tests.map((test, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{test.subject_icon}</span>
+                        <div>
+                          <div className="font-medium">{language === 'kz' ? test.subject_name_kz : test.subject_name_ru}</div>
+                          <div className="text-xs text-gray-500">{new Date(test.completed_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold text-indigo-600">{test.score}%</div>
+                        <div className="text-xs text-gray-500">{test.total_correct}/{test.total_questions}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Модальное окно подкастов */}
+      <Modal
+        isOpen={showPodcastsModal}
+        onClose={() => setShowPodcastsModal(false)}
+        title={language === 'kz' ? '🎧 Подкастар' : '🎧 Подкасты'}
+        size="large"
+      >
+        {subjectPodcasts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {subjectPodcasts.map((podcast) => (
+              <div key={podcast.id} className="bg-gradient-to-br from-orange-50 to-pink-50 rounded-xl p-4 border border-orange-200">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🎙️</span>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{language === 'kz' ? podcast.title_kz : podcast.title_ru}</h3>
+                      <p className="text-xs text-gray-600">{Math.floor(podcast.duration_seconds / 60)} мин</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                    podcast.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                    podcast.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {podcast.difficulty === 'easy' ? (language === 'kz' ? 'Оңай' : 'Легко') :
+                     podcast.difficulty === 'medium' ? (language === 'kz' ? 'Орта' : 'Средне') :
+                     (language === 'kz' ? 'Қиын' : 'Сложно')}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mb-3 line-clamp-2">{language === 'kz' ? podcast.description_kz : podcast.description_ru}</p>
+                <button
+                  onClick={() => { setShowPodcastsModal(false); navigate('/podcasts'); }}
+                  className="w-full py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 transition font-medium text-sm"
+                >
+                  {language === 'kz' ? 'Тыңдау' : 'Слушать'}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🎧</div>
+            <p className="text-gray-500">{language === 'kz' ? 'Подкастар табылмады' : 'Подкасты не найдены'}</p>
+          </div>
+        )}
+      </Modal>
+
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        {/* Компактный баннер */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">
+                {language === 'kz' ? 'Сәлем! 👋' : 'Привет! 👋'}
+              </h1>
+              <p className="text-indigo-100 text-sm">
+                {language === 'kz' ? 'Дайындықты жалғастыру' : 'Продолжаем подготовку'}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              {daysUntilENT !== null && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 text-center">
+                  <div className="text-2xl font-bold">{daysUntilENT}</div>
+                  <div className="text-xs text-indigo-100">{language === 'kz' ? 'күн' : 'дней'}</div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowSubjectSelector(true)}
+                className="bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-lg px-4 py-3 transition text-sm"
+              >
+                ⚙️ {language === 'kz' ? 'Пәндер' : 'Предметы'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Быстрые действия */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Статистика */}
+          <button
+            onClick={() => setShowStatsModal(true)}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition text-left group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center text-2xl">📊</div>
+              <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">{language === 'kz' ? 'Статистика' : 'Статистика'}</h3>
+            {stats && stats.total_tests > 0 ? (
+              <p className="text-sm text-gray-600">
+                {stats.total_tests} {language === 'kz' ? 'тест, ' : 'тестов, '}
+                {stats.average_score.toFixed(0)}% {language === 'kz' ? 'дәлдік' : 'точность'}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500">{language === 'kz' ? 'Статистика жоқ' : 'Нет статистики'}</p>
+            )}
+          </button>
+
+          {/* Подкасты */}
+          <button
+            onClick={() => setShowPodcastsModal(true)}
+            className="bg-gradient-to-br from-orange-50 to-pink-50 rounded-xl p-6 shadow-sm border border-orange-200 hover:shadow-md transition text-left group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center text-2xl">🎧</div>
+              <svg className="w-5 h-5 text-orange-400 group-hover:text-orange-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">{language === 'kz' ? 'Подкастар' : 'Подкасты'}</h3>
+            <p className="text-sm text-gray-600">
+              {subjectPodcasts.length} {language === 'kz' ? 'подкаст' : 'подкастов'}
+            </p>
+          </button>
+
+          {/* Рекомендации */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-blue-200">
+            <div className="flex items-center mb-3">
+              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-2xl">💡</div>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">{language === 'kz' ? 'Ұсыныстар' : 'Рекомендации'}</h3>
+            {topRecommendations.length > 0 ? (
+              <div className="space-y-2">
+                {topRecommendations.map((rec, idx) => (
+                  <div key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                    <span>{rec.icon}</span>
+                    <span className="line-clamp-2">{language === 'kz' ? rec.title_kz : rec.title_ru}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">{language === 'kz' ? 'Барлығы жақсы!' : 'Всё отлично!'}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Предметы - компактная сетка */}
+        {selectedSubjects.length > 0 ? (
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              {language === 'kz' ? 'Менің пәндерім' : 'Мои предметы'}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {selectedSubjects.map(subject => {
+                const subjectStats = getSubjectStats(subject.id);
+                return (
+                  <button
+                    key={subject.id}
+                    onClick={() => handleStartTest(subject.id)}
+                    className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-300 transition group"
+                  >
+                    <div className="text-4xl mb-2 group-hover:scale-110 transition">{subject.icon}</div>
+                    <h3 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-1">
+                      {language === 'kz' ? subject.name_kz : subject.name_ru}
+                    </h3>
+                    {subjectStats ? (
+                      <div className="text-xs text-gray-600">
+                        <div className="font-bold text-indigo-600">{subjectStats.accuracy.toFixed(0)}%</div>
+                        <div>{subjectStats.tests_completed} {language === 'kz' ? 'тест' : 'тестов'}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        {language === 'kz' ? 'Бастау' : 'Начать'}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+            <div className="text-5xl mb-3">📚</div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {language === 'kz' ? 'Пәндерді таңдаңыз' : 'Выберите предметы'}
+            </h3>
+            <p className="text-gray-600 mb-4 text-sm">
+              {language === 'kz' ? 'Дайындалатын 5 пәнді таңдаңыз' : 'Выберите 5 предметов для подготовки'}
+            </p>
+            <button
+              onClick={() => setShowSubjectSelector(true)}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+            >
+              {language === 'kz' ? 'Таңдау' : 'Выбрать'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
