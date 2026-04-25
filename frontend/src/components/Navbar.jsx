@@ -71,7 +71,7 @@ export default function Navbar() {
       logout: 'Шығу',
       theme: theme === 'light' ? 'Қараңғы режим' : 'Жарық режим',
       openLearning: 'Оқуға өту',
-      tagline: 'ҰБТ-ге дайындық дайындық платформасы',
+      tagline: 'ҰБТ дайындық платформасы',
     },
     ru: {
       features: 'Преимущества',
@@ -111,41 +111,51 @@ export default function Navbar() {
   }
 
   const mobileButtonBase = isLanding
-    ? 'border-white/12 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
+    ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
     : isDark
-      ? 'border-white/12 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
+      ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950'
 
   return (
-    <nav className={`sticky top-0 z-50 backdrop-blur-2xl ${
+    <nav className={`${isLanding ? 'fixed inset-x-0 top-4 z-50 px-3 sm:px-5' : 'sticky top-0 z-50'} backdrop-blur-2xl ${
       isLanding
-        ? 'border-b border-white/10 bg-slate-950/75 text-white shadow-[0_14px_42px_rgba(2,6,23,0.32)]'
+        ? 'text-white'
         : isDark
-          ? 'border-b border-white/10 bg-slate-950/82 text-white shadow-[0_14px_42px_rgba(2,6,23,0.32)]'
+          ? 'border-b border-white/10 bg-slate-950/80 text-white shadow-[0_14px_42px_rgba(2,6,23,0.32)]'
           : 'border-b border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
     }`}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent dark:via-cyan-300/60"></div>
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/30 to-transparent dark:via-fuchsia-400/35"></div>
+      {!isLanding && (
+        <>
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent dark:via-cyan-300/60"></div>
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/30 to-transparent dark:via-fuchsia-400/40"></div>
+        </>
+      )}
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-20 items-center justify-between gap-3 py-3 sm:py-4">
+      <div className={`relative mx-auto max-w-7xl ${isLanding ? 'rounded-[1.6rem] border border-white/10 bg-slate-950/50 px-4 shadow-[0_22px_70px_rgba(0,0,0,0.34)] ring-1 ring-fuchsia-300/10' : 'px-4 sm:px-6 lg:px-8'}`}>
+        {isLanding && (
+          <>
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent"></div>
+            <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/40 to-transparent"></div>
+          </>
+        )}
+        <div className="flex min-h-20 items-center justify-between gap-3 py-2.5 sm:py-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:h-11 sm:w-11 ${
                 isLanding
-                  ? 'border-white/12 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
+                  ? 'border-white/10 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
                   : isDark
-                    ? 'border-white/12 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
+                    ? 'border-white/10 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
                     : 'border-slate-200 bg-white'
               }`}>
                 <img src="/images/logo.png" alt="QazMind Logo" className="h-7 w-7 object-contain sm:h-8 sm:w-8" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 max-w-[14rem]">
                 <p className={`truncate text-lg font-black tracking-tight sm:text-xl ${
                   isLanding ? 'text-white' : isDark ? 'text-white' : 'text-slate-900'
                 }`}>QazMind</p>
-                <p className={`hidden text-[11px] uppercase tracking-[0.24em] md:block ${
-                  isLanding ? 'text-cyan-100/85' : isDark ? 'text-cyan-100/85' : 'text-slate-500'
+                <p className={`hidden truncate whitespace-nowrap text-[10px] font-bold uppercase leading-4 tracking-[0.22em] md:block ${
+                  isLanding ? 'text-cyan-100/80' : isDark ? 'text-cyan-100/80' : 'text-slate-500'
                 }`}>
                   {t[language].tagline}
                 </p>
@@ -158,9 +168,9 @@ export default function Navbar() {
                     <a
                       key={item.href}
                       href={item.href}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                        isLanding
-                          ? 'text-white/90 hover:bg-white/[0.08] hover:text-white'
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      isLanding
+                          ? 'text-white/90 hover:bg-violet-500/20 hover:text-white hover:shadow-[0_0_24px_rgba(168,85,247,0.22)]'
                           : isDark
                             ? 'text-white/90 hover:bg-white/[0.08] hover:text-white'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
@@ -206,9 +216,9 @@ export default function Navbar() {
 
             <div className={`flex items-center rounded-2xl border p-1 ${
               isLanding
-                ? 'border-white/12 bg-white/[0.05]'
+                ? 'border-white/10 bg-white/[0.05]'
                 : isDark
-                  ? 'border-white/12 bg-white/[0.05]'
+                  ? 'border-white/10 bg-white/[0.05]'
                   : 'border-slate-200 bg-white'
             }`}>
               <button
@@ -238,14 +248,14 @@ export default function Navbar() {
                 {isAdmin && (
                   <Link
                     to="/admin"
-                    className="hidden rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-400/12 dark:text-amber-100 dark:hover:bg-amber-400/20 lg:inline-flex"
+                    className="hidden rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-100 dark:hover:bg-amber-400/20 lg:inline-flex"
                   >
                     {t[language].admin}
                   </Link>
                 )}
                 <Link
                   to="/dashboard"
-                  className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:border-white/12 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1] lg:inline-flex"
+                  className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1] lg:inline-flex"
                 >
                   {t[language].dashboard}
                 </Link>
@@ -260,7 +270,7 @@ export default function Navbar() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:border-white/12 dark:bg-white/[0.05] dark:text-white/75 dark:hover:bg-red-500/18 dark:hover:text-white"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/75 dark:hover:bg-red-500/20 dark:hover:text-white"
                   title={t[language].logout}
                 >
                   <NavIcon>
@@ -275,8 +285,8 @@ export default function Navbar() {
                   to="/login"
                   className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                     isLanding
-                      ? 'border-white/12 bg-white/[0.05] text-white hover:bg-white/[0.1]'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:border-white/12 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.08]'
+                      ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1]'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.08]'
                   }`}
                 >
                   {t[language].login}
@@ -318,8 +328,8 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <div className={`mb-4 rounded-[28px] border p-4 md:hidden ${
             isLanding
-              ? 'border-white/12 bg-white/[0.06] text-white'
-              : 'border-slate-200 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/88 dark:text-white'
+              ? 'border-white/10 bg-white/[0.06] text-white'
+              : 'border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-950/90 dark:text-white'
           }`}>
             <div className="flex flex-col gap-2">
               {(isLanding ? landingLinks : appLinks).map((item) =>
@@ -355,7 +365,7 @@ export default function Navbar() {
                   {isAdmin && (
                     <Link
                       to="/admin"
-                      className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-400/12 dark:text-amber-100 dark:hover:bg-amber-400/20"
+                      className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-100 dark:hover:bg-amber-400/20"
                     >
                       {t[language].admin}
                     </Link>
@@ -371,7 +381,7 @@ export default function Navbar() {
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-white/12 dark:bg-white/[0.05] dark:text-red-300 dark:hover:bg-red-500/12"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-white/10 dark:bg-white/[0.05] dark:text-red-300 dark:hover:bg-red-500/10"
                   >
                     {t[language].logout}
                   </button>

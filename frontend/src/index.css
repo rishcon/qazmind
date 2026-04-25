@@ -80,6 +80,43 @@
 }
 
 @layer components {
+  .landing-primary-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 via-violet-500 to-pink-500 px-7 py-4 text-base font-black text-white shadow-[0_18px_42px_rgba(217,70,239,0.28)] transition duration-300 hover:scale-[1.02] hover:shadow-[0_22px_52px_rgba(34,211,238,0.24)] active:scale-95;
+  }
+
+  .landing-secondary-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-7 py-4 text-base font-black text-white shadow-[0_14px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-300 hover:scale-[1.02] hover:border-white/30 hover:bg-white/[0.08] active:scale-95;
+  }
+
+  .landing-glass {
+    @apply border border-white/12 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur-2xl;
+  }
+
+  .landing-page-bg {
+    position: relative;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(34, 211, 238, 0.12), transparent 22rem),
+      radial-gradient(circle at 88% 10%, rgba(217, 70, 239, 0.18), transparent 28rem),
+      radial-gradient(circle at 50% 42%, rgba(124, 58, 237, 0.13), transparent 34rem),
+      radial-gradient(circle at 12% 72%, rgba(236, 72, 153, 0.09), transparent 30rem),
+      radial-gradient(circle at 86% 84%, rgba(34, 211, 238, 0.08), transparent 28rem),
+      linear-gradient(180deg, #050615 0%, #07071c 45%, #050615 100%);
+    background-attachment: fixed;
+  }
+
+  .landing-page-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.014) 1px, transparent 1px);
+    background-size: 96px 96px;
+    mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+  }
+
   /* Кнопки */
   .btn {
     @apply px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-2xl relative overflow-hidden active:scale-95;
@@ -330,4 +367,40 @@
 
 .animate-pulse-scale {
   animation: pulseScale 2s ease-in-out infinite;
+}
+
+@keyframes landingFloat {
+  0%, 100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -14px;
+  }
+}
+
+@keyframes landingOrbit {
+  0% {
+    transform: rotate(0deg) scaleX(1.35);
+  }
+  100% {
+    transform: rotate(360deg) scaleX(1.35);
+  }
+}
+
+.landing-float {
+  animation: landingFloat 6s ease-in-out infinite;
+}
+
+.landing-float-delay {
+  animation-delay: -2s;
+}
+
+.landing-orbit {
+  animation: landingOrbit 24s linear infinite;
+  transform-origin: center;
+}
+
+.landing-orbit-slow {
+  animation-duration: 36s;
+  animation-direction: reverse;
 }
