@@ -1,10 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import api from '../utils/api'
+import KazakhPattern from '../components/KazakhPattern'
 
-function LandingIcon({ name, className = 'h-6 w-6', strokeWidth = 2 }) {
+// ---------------------------------------------------------------------------
+// Icons — small geometric line-icon set, reused across the page instead of
+// pulling in an icon library for a handful of glyphs.
+// ---------------------------------------------------------------------------
+function LandingIcon({ name, className = 'h-6 w-6', strokeWidth = 1.75 }) {
   const icons = {
     arrow: <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H9M17 7v8" />,
     atom: (
@@ -45,11 +51,7 @@ function LandingIcon({ name, className = 'h-6 w-6', strokeWidth = 2 }) {
     ),
     check: <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.8l4.3 4.3L19.5 6.8" />,
     flask: <path strokeLinecap="round" strokeLinejoin="round" d="M9.8 3v4.6l-4.7 8.3A2.2 2.2 0 007 19.5h10a2.2 2.2 0 001.9-3.6l-4.7-8.3V3M9 3h6" />,
-    headphones: (
-      <>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0115 0v5.2a2.2 2.2 0 01-2.2 2.3h-.8v-6h.8a2.2 2.2 0 012.2 2.2M4.5 15.7a2.2 2.2 0 012.2-2.2h.8v6h-.8a2.2 2.2 0 01-2.2-2.3v-1.5z" />
-      </>
-    ),
+    headphones: <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0115 0v5.2a2.2 2.2 0 01-2.2 2.3h-.8v-6h.8a2.2 2.2 0 012.2 2.2M4.5 15.7a2.2 2.2 0 012.2-2.2h.8v6h-.8a2.2 2.2 0 01-2.2-2.3v-1.5z" />,
     history: <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.2M15.8 21v-8.2M8.2 21v-8.2M3 9l9-6 9 6m-1.5 12V10.4A45.2 45.2 0 0012 9.8c-2.6 0-5.1.2-7.5.6V21M3 21h18" />,
     mic: (
       <>
@@ -84,6 +86,7 @@ function LandingIcon({ name, className = 'h-6 w-6', strokeWidth = 2 }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6.8H4.5A1.5 1.5 0 003 8.2V9a3.8 3.8 0 003.8 3.8M18 6.8h1.5A1.5 1.5 0 0121 8.2V9a3.8 3.8 0 01-3.8 3.8M12 10.5V15M9 21h6" />
       </>
     ),
+    chevron: <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />,
   }
 
   return (
@@ -93,196 +96,141 @@ function LandingIcon({ name, className = 'h-6 w-6', strokeWidth = 2 }) {
   )
 }
 
-function getSubjectVisual(subject) {
+// A subject's icon + a quiet two-way tile tone (deterministic, not per-subject
+// rainbow) so the grid reads calm at a glance while still being scannable.
+function getSubjectVisual(subject, index = 0) {
   const name = `${subject?.name_ru || ''} ${subject?.name_kz || ''}`.toLowerCase()
-  if (name.includes('история') || name.includes('тарих')) return { icon: 'history', accent: 'from-rose-500 to-fuchsia-600', glow: 'shadow-rose-500/20' }
-  if (name.includes('математ')) return { icon: 'calculator', accent: 'from-sky-400 to-violet-600', glow: 'shadow-sky-500/20' }
-  if (name.includes('грамот') || name.includes('оқу')) return { icon: 'book', accent: 'from-emerald-400 to-blue-600', glow: 'shadow-emerald-500/20' }
-  if (name.includes('физик')) return { icon: 'atom', accent: 'from-fuchsia-500 to-purple-700', glow: 'shadow-fuchsia-500/20' }
-  if (name.includes('биолог')) return { icon: 'sparkles', accent: 'from-emerald-500 to-cyan-600', glow: 'shadow-emerald-500/20' }
-  if (name.includes('хими')) return { icon: 'flask', accent: 'from-cyan-400 to-indigo-600', glow: 'shadow-cyan-500/20' }
-  return { icon: 'book', accent: 'from-violet-500 to-pink-600', glow: 'shadow-violet-500/20' }
+  let icon = 'book'
+  if (name.includes('история') || name.includes('тарих')) icon = 'history'
+  else if (name.includes('математ')) icon = 'calculator'
+  else if (name.includes('грамот') || name.includes('оқу')) icon = 'book'
+  else if (name.includes('физик')) icon = 'atom'
+  else if (name.includes('биолог')) icon = 'sparkles'
+  else if (name.includes('хими')) icon = 'flask'
+  return { icon, tile: index % 3 === 0 ? 'gold' : 'ink' }
 }
 
-function Badge({ icon = 'sparkles', children, tone = 'cyan' }) {
-  const tones = {
-    cyan: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200',
-    pink: 'border-pink-300/20 bg-pink-400/10 text-pink-200',
-    violet: 'border-violet-300/20 bg-violet-400/10 text-violet-100',
-    orange: 'border-orange-300/20 bg-orange-400/10 text-orange-200',
-  }
-
+// One consistent scroll-reveal used everywhere on the page — an "orchestrated
+// moment" rather than scattered per-element effects, and a no-op under
+// prefers-reduced-motion.
+function Reveal({ children, delay = 0, className = '' }) {
+  const reduceMotion = useReducedMotion()
+  if (reduceMotion) return <div className={className}>{children}</div>
   return (
-    <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${tones[tone]}`}>
-      <LandingIcon name={icon} className="h-4 w-4" />
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-10% 0px' }}
+      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
       {children}
+    </motion.div>
+  )
+}
+
+function Eyebrow({ children }) {
+  return <p className="landing-eyebrow">{children}</p>
+}
+
+function SectionHeading({ eyebrow, title, lede, align = 'left' }) {
+  return (
+    <div className={align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl'}>
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h2 className="mt-4 font-display text-4xl leading-[1.05] text-ink dark:text-ink-dark sm:text-5xl">
+        {title}
+      </h2>
+      {lede && <p className="mt-4 text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{lede}</p>}
     </div>
   )
 }
 
-function OrbitalBackdrop() {
+function StatRow({ items }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="landing-orbit absolute -left-24 top-24 h-64 w-64 rounded-full border border-fuchsia-400/30"></div>
-      <div className="landing-orbit landing-orbit-slow absolute -right-28 top-32 h-80 w-80 rounded-full border border-violet-400/30"></div>
-      <div className="absolute left-[7%] top-[20%] h-28 w-28 rounded-full bg-fuchsia-500/30 blur-3xl"></div>
-      <div className="absolute right-[8%] top-[10%] h-40 w-40 rounded-full bg-violet-500/25 blur-3xl"></div>
-      <div className="absolute bottom-[12%] left-[18%] h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl"></div>
-      <div className="absolute left-[3%] top-[46%] h-2 w-2 rounded-full bg-cyan-200 shadow-[0_0_18px_rgba(103,232,249,0.9)]"></div>
-      <div className="absolute right-[18%] top-[31%] h-1.5 w-1.5 rounded-full bg-fuchsia-200 shadow-[0_0_18px_rgba(232,121,249,0.9)]"></div>
-      <div className="absolute right-[9%] bottom-[19%] h-2 w-2 rounded-full bg-violet-200 shadow-[0_0_18px_rgba(196,181,253,0.9)]"></div>
+    <div className="grid grid-cols-3 divide-x divide-ink/10 dark:divide-ink-dark/10">
+      {items.map(([value, label]) => (
+        <div key={label} className="px-4 first:pl-0 sm:px-6">
+          <p className="font-display text-3xl text-ink dark:text-ink-dark sm:text-4xl">{value}</p>
+          <p className="mt-1 text-sm text-ink-muted dark:text-ink-dark/55">{label}</p>
+        </div>
+      ))}
     </div>
   )
 }
 
-function HeroPanel({ language }) {
+function IconTile({ icon, tone = 'ink' }) {
   return (
-    <div className="relative mx-auto max-w-xl lg:ml-auto">
-      <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-tr from-cyan-400/20 via-violet-500/20 to-pink-500/25 blur-3xl"></div>
-      <div className="landing-float relative rotate-0 rounded-[2rem] border border-white/20 bg-white/[0.07] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.35)] backdrop-blur-2xl lg:rotate-[-3deg]">
-        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent"></div>
-        <div className="flex items-start justify-between gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200/70">QazMind System</p>
-            <h3 className="mt-2 text-2xl font-black text-white [letter-spacing:0]">
-              {language === 'kz' ? 'AI дайындық панелі' : 'AI панель подготовки'}
-            </h3>
-          </div>
-          <div className="rounded-2xl border border-violet-300/20 bg-violet-400/10 px-5 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-100/60">{language === 'kz' ? 'Өсу' : 'Рост'}</p>
-            <p className="text-2xl font-black text-white">+28%</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-white/[0.14] to-white/[0.06] p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/20 text-cyan-200">
-                <LandingIcon name="book" className="h-7 w-7" />
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">{language === 'kz' ? 'Ағымдағы сценарий' : 'Текущий сценарий'}</p>
-                <p className="text-xl font-black text-white">{language === 'kz' ? 'Сынақ №1' : 'Тест №1'}</p>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-black text-slate-950">
-              <LandingIcon name="check" className="h-4 w-4" />
-              {language === 'kz' ? 'Өте жақсы' : 'Отлично'}
-            </span>
-          </div>
-          <div className="mt-5 flex items-center justify-between text-sm font-semibold text-white/70">
-            <span>{language === 'kz' ? 'Прогресс' : 'Прогресс'}</span>
-            <span className="text-cyan-200">80%</span>
-          </div>
-          <div className="mt-2 h-3 rounded-full bg-white/10">
-            <div className="h-full w-4/5 rounded-full bg-gradient-to-r from-cyan-300 via-violet-400 to-pink-400 shadow-[0_0_18px_rgba(217,70,239,0.45)]"></div>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {[
-            ['book', '28', language === 'kz' ? 'сабақ' : 'уроков', 'cyan'],
-            ['target', '156', language === 'kz' ? 'ұпай' : 'очков', 'violet'],
-            ['chart', '85%', language === 'kz' ? 'орташа' : 'средний', 'pink'],
-          ].map(([icon, value, label, tone]) => (
-            <div key={value} className={`rounded-[1.4rem] border border-${tone === 'cyan' ? 'cyan' : tone === 'violet' ? 'violet' : 'pink'}-300/20 bg-white/[0.05] p-4`}>
-              <LandingIcon name={icon} className="h-7 w-7 text-cyan-200" />
-              <p className="mt-4 text-2xl font-black text-white">{value}</p>
-              <p className="text-sm text-white/50">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-600 shadow-[0_0_32px_rgba(34,211,238,0.3)]">
-              <div className="h-10 w-10 rounded-full bg-slate-950">
-                <div className="mx-auto mt-3 flex w-6 justify-between">
-                  <span className="h-2 w-2 rounded-full bg-cyan-200"></span>
-                  <span className="h-2 w-2 rounded-full bg-cyan-200"></span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">AI-ментор</p>
-              <p className="text-xl font-black text-white">{language === 'kz' ? 'Үздік оқушы режимі' : 'Режим лучшего ученика'}</p>
-              <p className="text-sm text-white/50">{language === 'kz' ? 'Осы қарқынды сақтаңыз' : 'Продолжайте в том же духе'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div
+      className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+        tone === 'gold' ? 'bg-gold text-paper' : 'bg-ink text-paper dark:bg-ink-dark dark:text-ink'
+      }`}
+    >
+      <LandingIcon name={icon} className="h-6 w-6" />
     </div>
   )
 }
 
-function FeatureCard({ icon, title, description, points, accent, onClick }) {
+function FeatureCard({ icon, tone, title, description, points, onClick, delay }) {
   return (
-    <article className="group relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.055] p-7 backdrop-blur-2xl transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.075]">
-      <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 blur-2xl transition duration-300 group-hover:opacity-20`}></div>
-      <div className="relative">
-        <div className={`mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br ${accent} text-white shadow-[0_0_34px_rgba(168,85,247,0.36)]`}>
-          <LandingIcon name={icon} className="h-9 w-9" />
-        </div>
-        <h3 className="text-2xl font-black text-white [letter-spacing:0]">{title}</h3>
-        <p className="mt-3 min-h-[3.5rem] text-white/60">{description}</p>
-        <div className="mt-6 space-y-3">
+    <Reveal delay={delay}>
+      <article className="landing-card group flex h-full flex-col p-7 hover:border-ink/25 dark:hover:border-ink-dark/25">
+        <IconTile icon={icon} tone={tone} />
+        <h3 className="mt-6 font-display text-xl text-ink dark:text-ink-dark">{title}</h3>
+        <p className="mt-2 text-[15px] leading-6 text-ink-muted dark:text-ink-dark/60">{description}</p>
+        <ul className="mt-5 space-y-2.5">
           {points.map((point) => (
-            <div key={point} className="flex items-center gap-3 text-sm font-semibold text-white/75">
-              <LandingIcon name="check" className="h-4 w-4 text-cyan-200" />
+            <li key={point} className="flex items-start gap-2.5 text-sm text-ink/80 dark:text-ink-dark/75">
+              <LandingIcon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
               {point}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
         <button
           onClick={onClick}
-          className={`mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r ${accent} px-6 py-3 text-sm font-black text-white shadow-[0_16px_36px_rgba(168,85,247,0.25)] transition group-hover:scale-[1.02]`}
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline decoration-ink/25 underline-offset-4 transition group-hover:decoration-ink dark:text-ink-dark dark:decoration-ink-dark/25 dark:group-hover:decoration-ink-dark"
         >
           Узнать больше
-          <LandingIcon name="arrow" className="h-4 w-4" />
+          <LandingIcon name="arrow" className="h-3.5 w-3.5" />
         </button>
-      </div>
-    </article>
+      </article>
+    </Reveal>
   )
 }
 
-function SubjectCard({ subject, language, onStart, compact = false }) {
-  const visual = getSubjectVisual(subject)
+function SubjectCard({ subject, language, onStart, index }) {
+  const visual = getSubjectVisual(subject, index)
   const title = language === 'kz' ? subject.name_kz : subject.name_ru
 
   return (
-    <article className={`group relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.075] ${visual.glow} hover:shadow-2xl`}>
-      <div className={`absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${visual.accent} opacity-15 blur-2xl`}></div>
-      <div className="relative">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${visual.accent} text-white shadow-lg`}>
-          <LandingIcon name={visual.icon} className="h-7 w-7" />
-        </div>
-        <h3 className="mt-5 min-h-[3rem] text-lg font-black text-white [letter-spacing:0]">{title}</h3>
-        <p className="text-sm font-semibold text-white/50">
-          {subject.questions_count || 0} {language === 'kz' ? 'сұрақ' : 'вопросов'}
-        </p>
-        <button
-          onClick={() => onStart(subject.id)}
-          className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${visual.accent} px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(168,85,247,0.2)] transition hover:scale-[1.01]`}
-        >
-          {language === 'kz' ? 'Тест бастау' : 'Начать тест'}
-          <LandingIcon name="arrow" className="h-4 w-4" />
-        </button>
-        {compact && <div className="mt-3 h-1 rounded-full bg-white/10"><div className={`h-full w-2/3 rounded-full bg-gradient-to-r ${visual.accent}`}></div></div>}
-      </div>
+    <article className="landing-card group flex h-full flex-col p-5 hover:border-ink/25 dark:hover:border-ink-dark/25">
+      <IconTile icon={visual.icon} tone={visual.tile} />
+      <h3 className="mt-4 min-h-[2.75rem] font-display text-lg leading-tight text-ink dark:text-ink-dark">{title}</h3>
+      <p className="text-sm text-ink-muted dark:text-ink-dark/50">
+        {subject.questions_count || 0} {language === 'kz' ? 'сұрақ' : 'вопросов'}
+      </p>
+      <button
+        onClick={() => onStart(subject.id)}
+        className="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-ink/15 py-2.5 text-sm font-semibold text-ink transition group-hover:border-ink group-hover:bg-ink group-hover:text-paper dark:border-ink-dark/20 dark:text-ink-dark dark:group-hover:border-ink-dark dark:group-hover:bg-ink-dark dark:group-hover:text-ink"
+      >
+        {language === 'kz' ? 'Тест бастау' : 'Начать тест'}
+        <LandingIcon name="arrow" className="h-3.5 w-3.5" />
+      </button>
     </article>
   )
 }
 
 function SkeletonSubject() {
   return (
-    <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-5">
-      <div className="h-12 w-12 animate-pulse rounded-2xl bg-white/10"></div>
-      <div className="mt-5 h-5 w-2/3 animate-pulse rounded bg-white/10"></div>
-      <div className="mt-3 h-4 w-1/3 animate-pulse rounded bg-white/10"></div>
-      <div className="mt-5 h-11 animate-pulse rounded-xl bg-white/10"></div>
+    <div className="landing-card p-5">
+      <div className="h-12 w-12 animate-pulse rounded-xl bg-ink/10 dark:bg-ink-dark/10" />
+      <div className="mt-4 h-5 w-2/3 animate-pulse rounded bg-ink/10 dark:bg-ink-dark/10" />
+      <div className="mt-3 h-4 w-1/3 animate-pulse rounded bg-ink/10 dark:bg-ink-dark/10" />
+      <div className="mt-4 h-10 animate-pulse rounded-full bg-ink/10 dark:bg-ink-dark/10" />
     </div>
   )
 }
+
+// ---------------------------------------------------------------------------
 
 export default function Landing() {
   const { language } = useLanguageStore()
@@ -322,43 +270,67 @@ export default function Landing() {
 
   const text = {
     kz: {
-      heroTitle: 'ҰБТ-ға дайындық',
-      heroAccent: 'AI-ментормен',
-      heroDesc: 'Жасанды интеллект қателеріңізді талдайды, түсіндіреді және сізге жеке оқу бағытын ұсынады.',
+      heroEyebrow: 'ҰБТ-ға дайындық платформасы',
+      heroTitle: 'Дайындық,',
+      heroAccent: 'асықпай да дәл',
+      heroDesc: 'Жасанды интеллект қателеріңізді талдайды, түсіндіреді және сізге жеке оқу бағытын ұсынады — артық шу жоқ, тек нәтижеге апаратын қадамдар.',
       demo: 'Демо тест',
       register: 'Тегін тіркелу',
-      featuresTitle: 'Неліктен QazMind?',
-      featuresSubtitle: 'Заманауи технологиялар мен AI арқылы тиімді дайындық',
+      featuresEyebrow: 'Неге QazMind',
+      featuresTitle: 'Оқу тәжірибесі, ойластырылған',
+      featuresSubtitle: 'Әр мүмкіндіктің өз орны бар — техника емес, нәтиже үшін.',
+      subjectsEyebrow: '14 пән',
       subjectsTitle: 'Қолжетімді пәндер',
+      subjectsLede: '1000+ сұрақ, толық түсіндірмелер және AI ұсыныстары.',
       required: 'Міндетті пәндер',
       profile: 'Бейінді пәндер',
-      tutorTitle: 'AI-репетитор по теме',
+      tutorEyebrow: 'Жаңа режим',
+      tutorTitle: 'AI-репетитор',
+      tutorSub: 'тақырып бойынша',
       tutorDesc: 'Тақырыпты таңда, мини-сабақ ал, өз сөзіңмен жауап жаз және AI тексерісін ал.',
-      podcastsTitle: 'Аудио-лекциялар AI-экспертпен',
+      tutorCta: 'AI-репетиторды ашу',
+      tutorAlt: 'Алдымен тест',
+      podcastsEyebrow: 'Аудио-форматта',
+      podcastsTitle: 'AI-экспертпен лекциялар',
       podcastsDesc: 'Қысқа әрі түсінікті подкастар күрделі тақырыптарды жеңіл меңгеруге көмектеседі.',
-      flashcardsTitle: 'Флеш-карточки',
-      flashcardsDesc: 'Spaced Repetition алгоритмі материалды дәл уақытында қайталауға көмектеседі.',
-      ctaTitle: 'Бүгін бастаңыз!',
+      flashcardsEyebrow: 'Ақылды есте сақтау',
+      flashcardsTitle: 'Флеш-карточкалар',
+      flashcardsSub: 'Spaced Repetition алгоритмімен',
+      flashcardsDesc: 'Алгоритм материалды дәл уақытында қайталауға көмектеседі — артық емес, керек мөлшерде.',
+      ctaEyebrow: 'Бастауға дайынсыз ба',
+      ctaTitle: 'Бүгін бастаңыз',
       ctaDesc: 'Тіркелу тегін. AI-менторға және QazMind мүмкіндіктеріне қол жеткізіңіз.',
     },
     ru: {
-      heroTitle: 'Подготовка к ЕНТ',
-      heroAccent: 'с AI-ментором',
-      heroDesc: 'Искусственный интеллект анализирует ошибки, объясняет сложные темы и помогает выстроить личный маршрут подготовки.',
+      heroEyebrow: 'Платформа подготовки к ЕНТ',
+      heroTitle: 'Подготовка,',
+      heroAccent: 'без лишней спешки',
+      heroDesc: 'Искусственный интеллект анализирует ошибки, объясняет сложные темы и помогает выстроить личный маршрут подготовки — без лишнего шума, только шаги, которые приближают к результату.',
       demo: 'Демо тест',
       register: 'Зарегистрироваться',
-      featuresTitle: 'Почему QazMind?',
-      featuresSubtitle: 'Эффективное обучение с помощью современных технологий и AI',
+      featuresEyebrow: 'Почему QazMind',
+      featuresTitle: 'Обучение, устроенное продуманно',
+      featuresSubtitle: 'У каждой возможности есть своё место — не ради технологии, а ради результата.',
+      subjectsEyebrow: '14 предметов',
       subjectsTitle: 'Доступные предметы',
+      subjectsLede: '1000+ вопросов, полные разборы и рекомендации от AI.',
       required: 'Обязательные предметы',
       profile: 'Профильные предметы',
-      tutorTitle: 'AI-репетитор по теме',
+      tutorEyebrow: 'Новый режим',
+      tutorTitle: 'AI-репетитор',
+      tutorSub: 'по теме',
       tutorDesc: 'Выбери тему, получи мини-урок, напиши ответ своими словами и дай AI проверить понимание.',
-      podcastsTitle: 'Аудио-лекции с AI-экспертом',
+      tutorCta: 'Открыть AI-репетитора',
+      tutorAlt: 'Сначала пройти тест',
+      podcastsEyebrow: 'В аудиоформате',
+      podcastsTitle: 'Лекции с AI-экспертом',
       podcastsDesc: 'Короткие и понятные подкасты помогают усвоить сложные темы легко и эффективно.',
+      flashcardsEyebrow: 'Умное запоминание',
       flashcardsTitle: 'Флеш-карточки',
-      flashcardsDesc: 'Алгоритм Spaced Repetition подбирает лучшее время для повторения материала.',
-      ctaTitle: 'Начните сегодня!',
+      flashcardsSub: 'с алгоритмом Spaced Repetition',
+      flashcardsDesc: 'Алгоритм подбирает лучшее время для повторения материала — ровно тогда, когда нужно.',
+      ctaEyebrow: 'Готовы начать',
+      ctaTitle: 'Начните сегодня',
       ctaDesc: 'Регистрация бесплатна. Получите доступ к AI-ментору и всем возможностям QazMind.',
     },
   }[language]
@@ -390,165 +362,207 @@ export default function Landing() {
   }
 
   return (
-    <main className="landing-page-bg min-h-screen overflow-hidden text-white">
-      <section className="relative min-h-screen overflow-hidden">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 pb-20 pt-40 sm:px-6 sm:pt-44 lg:px-8 lg:pb-24 lg:pt-48">
-          <div className="grid min-h-[620px] items-center gap-12 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="max-w-3xl">
-              <Badge>{language === 'kz' ? 'Қазіргі және түсінікті дайындық' : 'Современная и понятная подготовка к ЕНТ'}</Badge>
-              <h1 className="mt-8 text-6xl font-black leading-none text-white [letter-spacing:0] sm:text-7xl lg:text-8xl">
+    <main className="landing-page-bg min-h-screen">
+      {/* ---------- Hero ---------- */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 text-ink dark:text-ink-dark lg:block">
+          <KazakhPattern />
+        </div>
+        <div className="container relative mx-auto px-4 pb-20 pt-16 sm:px-6 sm:pt-20 lg:px-8 lg:pb-28 lg:pt-24">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="max-w-xl">
+              <Eyebrow>{text.heroEyebrow}</Eyebrow>
+              <h1 className="mt-5 font-display text-5xl leading-[1.04] text-ink dark:text-ink-dark sm:text-6xl lg:text-[4rem]">
                 {text.heroTitle}
-                <span className="mt-3 block bg-gradient-to-r from-cyan-300 via-violet-300 to-pink-400 bg-clip-text text-transparent">
-                  {text.heroAccent}
-                </span>
+                <br />
+                <span className="italic text-gold">{text.heroAccent}</span>
               </h1>
-              <p className="mt-7 max-w-xl text-lg leading-8 text-white/70 sm:text-xl">{text.heroDesc}</p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <p className="mt-6 max-w-md text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{text.heroDesc}</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button onClick={() => handleStartTest()} className="landing-primary-button">
                   {isAuthenticated ? (language === 'kz' ? 'Оқуды бастау' : 'Начать обучение') : text.demo}
-                  <LandingIcon name="arrow" className="h-5 w-5" />
+                  <LandingIcon name="arrow" className="h-4 w-4" />
                 </button>
                 <Link to={isAuthenticated ? '/dashboard' : '/register'} className="landing-secondary-button">
                   {isAuthenticated ? (language === 'kz' ? 'Дашборд' : 'Панель управления') : text.register}
-                  <LandingIcon name="arrow" className="h-5 w-5" />
                 </Link>
               </div>
-              <div className="mt-9 grid max-w-xl grid-cols-3 gap-4">
-                {[
-                  ['14+', language === 'kz' ? 'Пән' : 'Предметов', 'cyan'],
-                  ['1000+', language === 'kz' ? 'Сұрақ' : 'Вопросов', 'violet'],
-                  ['AI', language === 'kz' ? 'Жеке тәсіл' : 'Персональный подход', 'pink'],
-                ].map(([value, label, tone]) => (
-                  <div key={value} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
-                    <p className={`text-3xl font-black ${tone === 'cyan' ? 'text-cyan-300' : tone === 'violet' ? 'text-violet-300' : 'text-pink-300'}`}>{value}</p>
-                    <p className="mt-1 text-sm text-white/50">{label}</p>
-                  </div>
-                ))}
+              <div className="mt-12 max-w-md">
+                <StatRow
+                  items={[
+                    ['14+', language === 'kz' ? 'Пән' : 'Предметов'],
+                    ['1000+', language === 'kz' ? 'Сұрақ' : 'Вопросов'],
+                    ['AI', language === 'kz' ? 'Жеке тәсіл' : 'Персональный подход'],
+                  ]}
+                />
               </div>
             </div>
-            <HeroPanel language={language} />
+
+            <Reveal delay={0.1}>
+              <div className="landing-card mx-auto w-full max-w-md p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <Eyebrow>QazMind</Eyebrow>
+                    <h3 className="mt-1.5 font-display text-xl text-ink dark:text-ink-dark">
+                      {language === 'kz' ? 'Бүгінгі сабақ' : 'Сегодняшняя сессия'}
+                    </h3>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-paper dark:bg-ink-dark dark:text-ink">
+                    <LandingIcon name="check" className="h-3.5 w-3.5" />
+                    {language === 'kz' ? 'Өте жақсы' : 'Отлично'}
+                  </span>
+                </div>
+
+                <div className="mt-6 flex items-center justify-between text-sm">
+                  <span className="text-ink-muted dark:text-ink-dark/55">
+                    {defaultSubject ? (language === 'kz' ? defaultSubject.name_kz : defaultSubject.name_ru) : (language === 'kz' ? 'Сынақ №1' : 'Тест №1')}
+                  </span>
+                  <span className="font-semibold text-gold-ink dark:text-gold-bright">80%</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-ink/10 dark:bg-ink-dark/10">
+                  <div className="h-full w-4/5 rounded-full bg-gold" />
+                </div>
+
+                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-ink/10 pt-6 dark:border-ink-dark/10">
+                  {[
+                    ['28', language === 'kz' ? 'сабақ' : 'уроков'],
+                    ['156', language === 'kz' ? 'ұпай' : 'очков'],
+                    ['85%', language === 'kz' ? 'орташа' : 'средний'],
+                  ].map(([value, label]) => (
+                    <div key={label}>
+                      <p className="font-display text-xl text-ink dark:text-ink-dark">{value}</p>
+                      <p className="text-xs text-ink-muted dark:text-ink-dark/50">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 rounded-xl bg-paper-soft p-3.5 dark:bg-white/[0.04]">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-paper">
+                    <LandingIcon name="bot" className="h-[18px] w-[18px]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink dark:text-ink-dark">
+                      {language === 'kz' ? 'Үздік оқушы режимі' : 'Режим лучшего ученика'}
+                    </p>
+                    <p className="truncate text-xs text-ink-muted dark:text-ink-dark/50">
+                      {language === 'kz' ? 'Осы қарқынды сақтаңыз' : 'Продолжайте в том же духе'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      <section id="features" className="relative overflow-hidden py-24">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge tone="violet">{language === 'kz' ? 'Біздің артықшылықтар' : 'Наши преимущества'}</Badge>
-            <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-              {text.featuresTitle.split(' ')[0]} <span className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">QazMind?</span>
-            </h2>
-            <p className="mt-5 text-lg text-white/60">{text.featuresSubtitle}</p>
-          </div>
-          <div className="mt-14 grid gap-6 md:grid-cols-3">
+      {/* ---------- Features ---------- */}
+      <section id="features" className="border-t border-ink/10 py-24 dark:border-ink-dark/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <Reveal>
+            <SectionHeading eyebrow={text.featuresEyebrow} title={text.featuresTitle} lede={text.featuresSubtitle} />
+          </Reveal>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
             <FeatureCard
               icon="bot"
+              tone="gold"
               title={language === 'kz' ? 'AI түсіндіру' : 'AI объяснения'}
               description={language === 'kz' ? 'Әр қателікке жеке және түсінікті түсіндірме.' : 'Персонализированные объяснения каждой вашей ошибки.'}
               points={language === 'kz' ? ['Қарапайым түсінік', 'Нақты аналогиялар', 'Жеке тәсіл'] : ['Понятные объяснения', 'Примеры и аналогии', 'Индивидуальный подход']}
-              accent="from-cyan-400 to-blue-600"
               onClick={() => handleStartTest()}
+              delay={0}
             />
             <FeatureCard
               icon="book"
+              tone="ink"
               title={language === 'kz' ? 'Бейімделген оқу' : 'Адаптивное обучение'}
               description={language === 'kz' ? 'Тесттер сіздің қателеріңізге және деңгейіңізге бейімделеді.' : 'Тесты подстраиваются под ваши ошибки и уровень знаний.'}
               points={language === 'kz' ? ['Ақылды таңдау', 'Әлсіз тұстар', 'Үздіксіз даму'] : ['Умный подбор заданий', 'Фокус на слабых местах', 'Постоянное улучшение']}
-              accent="from-violet-500 to-fuchsia-600"
               onClick={() => handleStartTest()}
+              delay={0.08}
             />
             <FeatureCard
               icon="chart"
+              tone="gold"
               title={language === 'kz' ? 'Прогресс бақылауы' : 'Отслеживание прогресса'}
               description={language === 'kz' ? 'Нәтижелерді көріп, мақсатқа жақындағаныңызды бақылаңыз.' : 'Следите за результатами и двигайтесь к цели понятным маршрутом.'}
               points={language === 'kz' ? ['Толық статистика', 'Динамика', 'Мақсаттар'] : ['Детальная статистика', 'Графики и динамика', 'Цели и достижения']}
-              accent="from-orange-400 to-rose-600"
               onClick={() => navigate(isAuthenticated ? '/dashboard' : '/register')}
+              delay={0.16}
             />
           </div>
-          <div className="mt-8 grid gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-6 backdrop-blur-xl md:grid-cols-4">
-            {[
-              ['14+', language === 'kz' ? 'Пәндер' : 'Предметов', 'book'],
-              ['1000+', language === 'kz' ? 'Пайдаланушы' : 'Пользователей', 'trophy'],
-              ['AI', language === 'kz' ? 'Технология' : 'Технологии', 'bolt'],
-              ['98%', language === 'kz' ? 'Түсіндіру дәлдігі' : 'Точность объяснений', 'shield'],
-            ].map(([value, label, icon]) => (
-              <div key={value} className="flex items-center justify-center gap-4 border-white/10 py-3 md:border-r md:last:border-r-0">
-                <LandingIcon name={icon} className="h-8 w-8 text-fuchsia-300" />
-                <div>
-                  <p className="text-3xl font-black text-white">{value}</p>
-                  <p className="text-sm text-white/50">{label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      <section id="subjects" className="relative overflow-hidden py-24">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid items-start gap-8 lg:grid-cols-[1fr_0.85fr]">
-            <div>
-              <Badge icon="book">{language === 'kz' ? '14 пән дайындық үшін' : '14 предметов для подготовки'}</Badge>
-              <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-                {text.subjectsTitle.split(' ')[0]} <span className="bg-gradient-to-r from-violet-300 to-pink-400 bg-clip-text text-transparent">{text.subjectsTitle.split(' ').slice(1).join(' ')}</span>
-              </h2>
-              <p className="mt-4 text-lg text-white/60">{language === 'kz' ? '1000+ сұрақ, AI ұсыныстары және толық түсіндірмелер' : '1000+ вопросов, AI рекомендации и полные объяснения'}</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-6 backdrop-blur-xl">
+          <Reveal delay={0.1}>
+            <div className="landing-card mt-6 grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ink/10 dark:lg:divide-ink-dark/10">
               {[
-                ['book', '1000+', language === 'kz' ? 'сұрақ' : 'вопросов'],
-                ['bot', 'AI', language === 'kz' ? 'ұсыныстар' : 'рекомендации'],
-                ['chart', '100%', language === 'kz' ? 'талдау' : 'разбор'],
-              ].map(([icon, value, label]) => (
-                <div key={value}>
-                  <LandingIcon name={icon} className="h-8 w-8 text-cyan-200" />
-                  <p className="mt-3 text-2xl font-black text-white">{value}</p>
-                  <p className="text-sm text-white/50">{label}</p>
+                ['14+', language === 'kz' ? 'Пәндер' : 'Предметов'],
+                ['1000+', language === 'kz' ? 'Пайдаланушы' : 'Пользователей'],
+                ['AI', language === 'kz' ? 'Технология' : 'Технологии'],
+                ['98%', language === 'kz' ? 'Түсіндіру дәлдігі' : 'Точность объяснений'],
+              ].map(([value, label]) => (
+                <div key={label} className="lg:pl-6 lg:first:pl-0">
+                  <p className="font-display text-2xl text-ink dark:text-ink-dark">{value}</p>
+                  <p className="text-sm text-ink-muted dark:text-ink-dark/50">{label}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </Reveal>
+        </div>
+      </section>
 
-          <div className="mt-14">
+      {/* ---------- Subjects ---------- */}
+      <section id="subjects" className="border-t border-ink/10 bg-paper-soft py-24 dark:border-ink-dark/10 dark:bg-white/[0.02]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <Reveal>
+            <div className="grid items-end gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+              <SectionHeading eyebrow={text.subjectsEyebrow} title={text.subjectsTitle} lede={text.subjectsLede} />
+              <div className="landing-card p-6">
+                <StatRow
+                  items={[
+                    ['1000+', language === 'kz' ? 'сұрақ' : 'вопросов'],
+                    ['AI', language === 'kz' ? 'ұсыныстар' : 'рекомендации'],
+                    ['100%', language === 'kz' ? 'талдау' : 'разбор'],
+                  ]}
+                />
+              </div>
+            </div>
+          </Reveal>
+
+          <div className="mt-16">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="flex items-center gap-3 text-2xl font-black text-white [letter-spacing:0]">
-                <LandingIcon name="sparkles" className="h-6 w-6 text-violet-300" />
-                {text.required}
-              </h3>
-              <span className="rounded-full bg-pink-500/10 px-4 py-2 text-sm font-black text-pink-300">{language === 'kz' ? 'Міндетті' : 'Обязательно'}</span>
+              <h3 className="font-display text-xl text-ink dark:text-ink-dark">{text.required}</h3>
+              <span className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink-muted dark:border-ink-dark/20 dark:text-ink-dark/60">
+                {language === 'kz' ? 'Міндетті' : 'Обязательно'}
+              </span>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {loadingSubjects ? Array.from({ length: 4 }).map((_, index) => <SkeletonSubject key={index} />) : requiredSubjects.map((subject) => <SubjectCard key={subject.id} subject={subject} language={language} onStart={handleStartTest} />)}
+              {loadingSubjects
+                ? Array.from({ length: 4 }).map((_, index) => <SkeletonSubject key={index} />)
+                : requiredSubjects.map((subject, index) => (
+                    <SubjectCard key={subject.id} subject={subject} language={language} onStart={handleStartTest} index={index} />
+                  ))}
             </div>
           </div>
 
           <div className="mt-12">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="flex items-center gap-3 text-2xl font-black text-white [letter-spacing:0]">
-                <LandingIcon name="target" className="h-6 w-6 text-fuchsia-300" />
-                {text.profile}
-              </h3>
-              <span className="rounded-full bg-violet-500/10 px-4 py-2 text-sm font-black text-violet-300">{language === 'kz' ? 'Таңдау бойынша' : 'На выбор'}</span>
+              <h3 className="font-display text-xl text-ink dark:text-ink-dark">{text.profile}</h3>
+              <span className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink-muted dark:border-ink-dark/20 dark:text-ink-dark/60">
+                {language === 'kz' ? 'Таңдау бойынша' : 'На выбор'}
+              </span>
             </div>
             <div className="grid gap-5 md:grid-cols-3">
-              {loadingSubjects ? Array.from({ length: 3 }).map((_, index) => <SkeletonSubject key={index} />) : profileSubjects.slice(0, 3).map((subject) => <SubjectCard key={subject.id} compact subject={subject} language={language} onStart={handleStartTest} />)}
+              {loadingSubjects
+                ? Array.from({ length: 3 }).map((_, index) => <SkeletonSubject key={index} />)
+                : profileSubjects.slice(0, 3).map((subject, index) => (
+                    <SubjectCard key={subject.id} subject={subject} language={language} onStart={handleStartTest} index={index} />
+                  ))}
             </div>
             {!loadingSubjects && profileSubjects.length > 3 && (
               <div className={`grid transition-[grid-template-rows,opacity] duration-500 ease-out ${showAllProfile ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                 <div className="overflow-hidden">
-                  <div className={`grid gap-5 pt-5 transition duration-500 ease-out md:grid-cols-3 ${showAllProfile ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'}`}>
-                    {profileSubjects.slice(3).map((subject) => (
-                      <SubjectCard
-                        key={subject.id}
-                        compact
-                        subject={subject}
-                        language={language}
-                        onStart={handleStartTest}
-                      />
+                  <div className="grid gap-5 pt-5 md:grid-cols-3">
+                    {profileSubjects.slice(3).map((subject, index) => (
+                      <SubjectCard key={subject.id} subject={subject} language={language} onStart={handleStartTest} index={index + 3} />
                     ))}
                   </div>
                 </div>
@@ -559,26 +573,17 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setShowAllProfile((value) => !value)}
-                  className="inline-flex items-center gap-3 rounded-full border border-violet-300/20 bg-gradient-to-r from-violet-600/70 to-fuchsia-600/70 px-8 py-4 text-sm font-black text-white shadow-[0_18px_42px_rgba(168,85,247,0.24)] transition hover:scale-[1.02] hover:border-violet-200/40"
+                  className="landing-secondary-button"
                 >
                   {showAllProfile
                     ? (language === 'kz' ? 'Жасыру' : 'Скрыть')
                     : (language === 'kz' ? `Барлық пәндерді көрсету (${profileSubjects.length})` : `Показать все предметы (${profileSubjects.length})`)}
-                  <svg
-                    className={`h-4 w-4 transition-transform ${showAllProfile ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
+                  <LandingIcon name="chevron" className={`h-4 w-4 transition-transform ${showAllProfile ? 'rotate-180' : ''}`} />
                 </button>
               </div>
             )}
             {!loadingSubjects && subjects.length === 0 && (
-              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-8 text-center text-white/60">
+              <div className="landing-card p-8 text-center text-ink-muted dark:text-ink-dark/60">
                 {language === 'kz' ? 'Пәндер қазір жүктелмеді. Кейінірек қайталап көріңіз.' : 'Предметы сейчас не загрузились. Попробуйте позже.'}
               </div>
             )}
@@ -586,254 +591,295 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="tutor" className="relative overflow-hidden py-24">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+      {/* ---------- AI Tutor ---------- */}
+      <section id="tutor" className="border-t border-ink/10 py-24 dark:border-ink-dark/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <Badge tone="cyan" icon="sparkles">{language === 'kz' ? 'Жаңа AI-режим' : 'Новый AI-режим'}</Badge>
-              <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-                <span className="bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent">AI-репетитор</span>
-                <span className="block">по теме</span>
-              </h2>
-              <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">{text.tutorDesc}</p>
-              <div className="mt-7 grid gap-3 sm:grid-cols-3">
-                {[language === 'kz' ? 'Тақырыпты түсіндіреді' : 'Объясняет тему', language === 'kz' ? '5 ұқсас сұрақ' : '5 похожих вопросов', language === 'kz' ? 'Жауапты тексереді' : 'Проверяет ответ'].map((item, index) => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 text-sm font-bold text-white/100">
-                    <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/20 text-cyan-200">{index + 1}</span>
-                    {item}
+            <Reveal>
+              <div>
+                <Eyebrow>{text.tutorEyebrow}</Eyebrow>
+                <h2 className="mt-4 font-display text-4xl leading-[1.05] text-ink dark:text-ink-dark sm:text-5xl">
+                  {text.tutorTitle} <span className="italic text-gold">{text.tutorSub}</span>
+                </h2>
+                <p className="mt-5 max-w-md text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{text.tutorDesc}</p>
+                <div className="mt-7 space-y-3">
+                  {(language === 'kz'
+                    ? ['Тақырыпты түсіндіреді', '5 ұқсас сұрақ', 'Жауапты тексереді']
+                    : ['Объясняет тему', '5 похожих вопросов', 'Проверяет ответ']
+                  ).map((item, index) => (
+                    <div key={item} className="flex items-center gap-3 text-sm font-medium text-ink dark:text-ink-dark">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/5 text-xs font-semibold text-ink-muted dark:bg-ink-dark/10 dark:text-ink-dark/60">
+                        {index + 1}
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <button onClick={handleStartTutor} className="landing-primary-button">
+                    {text.tutorCta}
+                    <LandingIcon name="arrow" className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => handleStartTest()} className="landing-secondary-button">
+                    {text.tutorAlt}
+                  </button>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <div className="landing-card p-7">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Eyebrow>AI Tutor</Eyebrow>
+                    <h3 className="mt-1.5 font-display text-2xl text-ink dark:text-ink-dark">
+                      {defaultSubject ? (language === 'kz' ? defaultSubject.name_kz : defaultSubject.name_ru) : 'Информатика'}
+                    </h3>
                   </div>
-                ))}
-              </div>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                <button onClick={handleStartTutor} className="landing-primary-button">
-                  {language === 'kz' ? 'AI-репетиторды ашу' : 'Открыть AI-репетитора'}
-                  <LandingIcon name="arrow" className="h-5 w-5" />
-                </button>
-                <button onClick={() => handleStartTest()} className="landing-secondary-button">
-                  <LandingIcon name="book" className="h-5 w-5" />
-                  {language === 'kz' ? 'Алдымен тест' : 'Сначала пройти тест'}
-                </button>
-              </div>
-            </div>
-            <div className="rounded-[2rem] border border-white/10 bg-white/[0.065] p-7 backdrop-blur-2xl shadow-[0_28px_90px_rgba(0,0,0,0.32)]">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-cyan-300">AI Tutor</p>
-                  <h3 className="mt-3 text-3xl font-black text-white [letter-spacing:0]">{defaultSubject ? (language === 'kz' ? defaultSubject.name_kz : defaultSubject.name_ru) : 'Информатика'}</h3>
-                </div>
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-700 text-white shadow-[0_0_35px_rgba(168,85,247,0.45)]">
-                  <LandingIcon name="sparkles" className="h-8 w-8" />
-                </div>
-              </div>
-              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-5">
-                {['Выбираешь тему', 'AI объясняет', 'Ты пишешь ответ', 'AI даёт точную обратную связь'].map((item, index) => (
-                  <div key={item} className="flex items-center gap-4 py-2 text-white/100">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-400/20 text-sm font-black text-cyan-200">{index + 1}</span>
-                    {language === 'kz' ? ['Тақырып таңдайсың', 'AI түсіндіреді', 'Жауап жазасың', 'AI нақты кері байланыс береді'][index] : item}
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-paper">
+                    <LandingIcon name="sparkles" className="h-5 w-5" />
                   </div>
-                ))}
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5">
-                  <p className="text-4xl font-black text-cyan-300">5</p>
-                  <p className="mt-2 text-white/50">{language === 'kz' ? 'ұқсас сұрақ' : 'похожих вопросов'}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5">
-                  <p className="text-4xl font-black text-violet-300">100</p>
-                  <p className="mt-2 text-white/50">{language === 'kz' ? 'балдық тексеріс' : 'балльная проверка'}</p>
+                <div className="mt-6 space-y-1 rounded-xl bg-paper-soft p-4 dark:bg-white/[0.04]">
+                  {(language === 'kz'
+                    ? ['Тақырып таңдайсың', 'AI түсіндіреді', 'Жауап жазасың', 'AI нақты кері байланыс береді']
+                    : ['Выбираешь тему', 'AI объясняет', 'Ты пишешь ответ', 'AI даёт точную обратную связь']
+                  ).map((item, index) => (
+                    <div key={item} className="flex items-center gap-3 py-1.5 text-sm text-ink/85 dark:text-ink-dark/80">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/5 text-xs font-semibold text-ink-muted dark:bg-ink-dark/10 dark:text-ink-dark/55">
+                        {index + 1}
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ink/10 pt-5 dark:border-ink-dark/10">
+                  <div>
+                    <p className="font-display text-3xl text-ink dark:text-ink-dark">5</p>
+                    <p className="mt-1 text-sm text-ink-muted dark:text-ink-dark/50">{language === 'kz' ? 'ұқсас сұрақ' : 'похожих вопросов'}</p>
+                  </div>
+                  <div>
+                    <p className="font-display text-3xl text-ink dark:text-ink-dark">100</p>
+                    <p className="mt-1 text-sm text-ink-muted dark:text-ink-dark/50">{language === 'kz' ? 'балдық тексеріс' : 'балльная проверка'}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      <section id="podcasts" className="relative overflow-hidden py-24">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-            <div>
-              <Badge tone="orange" icon="headphones">AI подкасты</Badge>
-              <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-                <span className="bg-gradient-to-r from-orange-300 via-pink-400 to-violet-400 bg-clip-text text-transparent">{text.podcastsTitle.split(' ')[0]}</span>
-                <span className="block">{text.podcastsTitle.split(' ').slice(1).join(' ')}</span>
-              </h2>
-              <p className="mt-6 max-w-lg text-lg leading-8 text-white/60">{text.podcastsDesc}</p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                {['3-5 минут', language === 'kz' ? 'Кез келген жерде' : 'Доступно везде', 'AI-эксперт'].map((item) => (
-                  <span key={item} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/70">{item}</span>
-                ))}
-              </div>
-            </div>
-            <div className="relative min-h-[360px]">
-              <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full border border-pink-400/20"></div>
-              <div className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-400/25"></div>
-              <div className="landing-float absolute left-1/2 top-1/2 flex h-44 w-44 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-br from-slate-950 to-violet-950 text-pink-300 shadow-[0_0_70px_rgba(217,70,239,0.38)]">
-                <LandingIcon name="headphones" className="h-28 w-28" />
-              </div>
-              <div className="absolute left-1/2 top-1/2 h-16 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-pink-500 to-violet-500 blur-md"></div>
-              {['mic', 'book', 'target', 'sparkles'].map((icon, index) => (
-                <div key={icon} className={`absolute flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-violet-700 text-white shadow-lg ${index === 0 ? 'left-[16%] top-[16%]' : index === 1 ? 'left-[18%] bottom-[20%]' : index === 2 ? 'right-[18%] bottom-[20%]' : 'right-[16%] top-[18%]'}`}>
-                  <LandingIcon name={icon} className="h-7 w-7" />
+      {/* ---------- Podcasts ---------- */}
+      <section id="podcasts" className="border-t border-ink/10 bg-paper-soft py-24 dark:border-ink-dark/10 dark:bg-white/[0.02]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.85fr]">
+            <Reveal>
+              <div>
+                <Eyebrow>{text.podcastsEyebrow}</Eyebrow>
+                <h2 className="mt-4 font-display text-4xl leading-[1.05] text-ink dark:text-ink-dark sm:text-5xl">{text.podcastsTitle}</h2>
+                <p className="mt-5 max-w-md text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{text.podcastsDesc}</p>
+                <div className="mt-6 flex flex-wrap gap-2.5">
+                  {['3–5 ' + (language === 'kz' ? 'минут' : 'минут'), language === 'kz' ? 'Кез келген жерде' : 'Доступно везде', 'AI-эксперт'].map((item) => (
+                    <span key={item} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-medium text-ink-muted dark:border-ink-dark/20 dark:text-ink-dark/60">
+                      {item}
+                    </span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {[language === 'kz' ? 'Жаңа тақырыптар апта сайын' : 'Новые темы каждую неделю', language === 'kz' ? 'Мақсатты дайындық' : 'Целевая подготовка', language === 'kz' ? 'Кәсіби түсіндірмелер' : 'Профессиональные объяснения'].map((title, index) => (
-              <div key={title} className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-6 backdrop-blur-xl">
-                <LandingIcon name={['cards', 'target', 'bot'][index]} className="h-12 w-12 text-pink-300" />
-                <h3 className="mt-5 text-xl font-black text-white [letter-spacing:0]">{title}</h3>
-                <Link to="/podcasts" className="mt-6 inline-flex items-center gap-2 text-sm font-black text-pink-300">
-                  {language === 'kz' ? 'Көру' : 'Смотреть'}
+                <Link to="/podcasts" className="landing-primary-button mt-8 w-fit">
+                  {language === 'kz' ? 'Подкастарды көру' : 'Смотреть подкасты'}
                   <LandingIcon name="arrow" className="h-4 w-4" />
                 </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </Reveal>
 
-      <section id="flashcards" className="relative overflow-hidden py-24">
-        <OrbitalBackdrop />
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="relative min-h-[320px]">
-              <div className="landing-float absolute left-8 top-12 h-40 w-56 rotate-[-12deg] rounded-[1.6rem] border border-pink-300/25 bg-gradient-to-br from-pink-500/70 to-violet-700/70 shadow-[0_0_60px_rgba(217,70,239,0.28)]"></div>
-              <div className="landing-float landing-float-delay absolute left-24 top-20 h-44 w-56 rotate-[7deg] rounded-[1.6rem] border border-violet-300/25 bg-gradient-to-br from-violet-600/80 to-fuchsia-600/75 p-8 shadow-[0_0_60px_rgba(124,58,237,0.35)]">
-                <LandingIcon name="trophy" className="mx-auto h-14 w-14 text-white/75" />
-                <p className="mt-8 text-center text-3xl font-black text-white">1465</p>
-                <p className="text-center text-sm text-white/70">{language === 'kz' ? 'оқу күні' : 'дней обучения'}</p>
-                <div className="mt-8 h-2 rounded-full bg-white/20">
-                  <div className="h-full w-3/5 rounded-full bg-pink-300"></div>
+            <Reveal delay={0.1}>
+              <div className="landing-card flex flex-col items-center p-10 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-ink text-paper dark:bg-ink-dark dark:text-ink">
+                  <LandingIcon name="headphones" className="h-9 w-9" />
+                </div>
+                <p className="mt-6 font-display text-lg text-ink dark:text-ink-dark">
+                  {language === 'kz' ? 'Абылай хан және Дала тарихы' : 'Абылай хан и история степи'}
+                </p>
+                <div className="mt-5 flex w-full items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-paper">
+                    <LandingIcon name="play" className="h-4 w-4" />
+                  </div>
+                  <div className="h-1 flex-1 rounded-full bg-ink/10 dark:bg-ink-dark/10">
+                    <div className="h-full w-1/3 rounded-full bg-gold" />
+                  </div>
+                  <span className="text-xs text-ink-muted dark:text-ink-dark/50">4:12</span>
                 </div>
               </div>
+            </Reveal>
+          </div>
+
+          <Reveal delay={0.15}>
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {[
+                [language === 'kz' ? 'Жаңа тақырыптар апта сайын' : 'Новые темы каждую неделю', 'cards'],
+                [language === 'kz' ? 'Мақсатты дайындық' : 'Целевая подготовка', 'target'],
+                [language === 'kz' ? 'Кәсіби түсіндірмелер' : 'Профессиональные объяснения', 'bot'],
+              ].map(([title, icon]) => (
+                <div key={title} className="landing-card p-6">
+                  <IconTile icon={icon} tone="ink" />
+                  <h3 className="mt-5 font-display text-lg text-ink dark:text-ink-dark">{title}</h3>
+                  <Link to="/podcasts" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline decoration-ink/25 underline-offset-4 dark:text-ink-dark dark:decoration-ink-dark/25">
+                    {language === 'kz' ? 'Көру' : 'Смотреть'}
+                    <LandingIcon name="arrow" className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              ))}
             </div>
-            <div>
-              <Badge tone="pink" icon="cards">{language === 'kz' ? 'Ақылды есте сақтау' : 'Умное запоминание'}</Badge>
-              <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-                <span className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">{text.flashcardsTitle}</span>
-                <span className="block text-3xl md:text-4xl">{language === 'kz' ? 'Spaced Repetition алгоритмімен' : 'с алгоритмом Spaced Repetition'}</span>
-              </h2>
-              <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">{text.flashcardsDesc}</p>
-              <div className="mt-7 space-y-3">
-                {[language === 'kz' ? 'Пәнді таңдаңыз' : 'Выберите предмет', language === 'kz' ? 'Карточканы оқып аударыңыз' : 'Прочитайте карточку и переверните', language === 'kz' ? 'Жауапты белгілеңіз' : 'Свайпните или нажмите кнопку'].map((item, index) => (
-                  <div key={item} className="flex items-center gap-3 text-white/75">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-500/20 text-sm font-black text-pink-200">{index + 1}</span>
-                    {item}
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ---------- Flashcards ---------- */}
+      <section id="flashcards" className="border-t border-ink/10 py-24 dark:border-ink-dark/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
+            <Reveal>
+              <div className="relative mx-auto flex h-72 w-full max-w-sm items-center justify-center">
+                <div className="landing-card absolute h-52 w-40 -rotate-6 bg-paper-soft dark:bg-white/[0.04]" />
+                <div className="landing-card relative flex h-56 w-44 rotate-3 flex-col items-center justify-center gap-3 p-6">
+                  <LandingIcon name="trophy" className="h-9 w-9 text-gold" />
+                  <p className="font-display text-3xl text-ink dark:text-ink-dark">1465</p>
+                  <p className="text-center text-xs text-ink-muted dark:text-ink-dark/50">
+                    {language === 'kz' ? 'оқу күні' : 'дней обучения'}
+                  </p>
+                  <div className="h-1 w-full rounded-full bg-ink/10 dark:bg-ink-dark/10">
+                    <div className="h-full w-3/5 rounded-full bg-gold" />
                   </div>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <div>
+                <Eyebrow>{text.flashcardsEyebrow}</Eyebrow>
+                <h2 className="mt-4 font-display text-4xl leading-[1.05] text-ink dark:text-ink-dark sm:text-5xl">
+                  {text.flashcardsTitle}
+                  <br />
+                  <span className="text-2xl italic text-gold sm:text-3xl">{text.flashcardsSub}</span>
+                </h2>
+                <p className="mt-5 max-w-xl text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{text.flashcardsDesc}</p>
+                <div className="mt-7 space-y-3">
+                  {(language === 'kz'
+                    ? ['Пәнді таңдаңыз', 'Карточканы оқып аударыңыз', 'Жауапты белгілеңіз']
+                    : ['Выберите предмет', 'Прочитайте карточку и переверните', 'Отметьте, насколько легко вспомнили']
+                  ).map((item, index) => (
+                    <div key={item} className="flex items-center gap-3 text-sm font-medium text-ink dark:text-ink-dark">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/5 text-xs font-semibold text-ink-muted dark:bg-ink-dark/10 dark:text-ink-dark/60">
+                        {index + 1}
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Link to="/flashcards" className="landing-primary-button">
+                    <LandingIcon name="cards" className="h-4 w-4" />
+                    {language === 'kz' ? 'Бастау' : 'Начать'}
+                  </Link>
+                  <Link to="/flashcards" className="landing-secondary-button">
+                    {language === 'kz' ? 'Толығырақ' : 'Подробнее'}
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Final CTA ---------- */}
+      <section className="border-t border-ink/10 px-4 py-24 dark:border-ink-dark/10">
+        <Reveal>
+          <div className="landing-card mx-auto max-w-5xl px-6 py-16 text-center sm:px-12">
+            <Eyebrow>{text.ctaEyebrow}</Eyebrow>
+            <h2 className="mt-4 font-display text-4xl leading-[1.05] text-ink dark:text-ink-dark sm:text-6xl">{text.ctaTitle}</h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-7 text-ink-muted dark:text-ink-dark/60">{text.ctaDesc}</p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link to="/register" className="landing-primary-button">
+                {language === 'kz' ? 'Тегін тіркелу' : 'Бесплатная регистрация'}
+                <LandingIcon name="arrow" className="h-4 w-4" />
+              </Link>
+              <button onClick={() => handleStartTest()} className="landing-secondary-button">
+                {language === 'kz' ? 'Демо көру' : 'Попробовать демо'}
+              </button>
+            </div>
+            <div className="mx-auto mt-12 max-w-2xl border-t border-ink/10 pt-8 dark:border-ink-dark/10">
+              <div className="grid grid-cols-5 gap-2">
+                {['1000+', '14+', 'AI', '98%', '24/7'].map((item) => (
+                  <div key={item} className="font-display text-lg text-ink dark:text-ink-dark sm:text-2xl">{item}</div>
                 ))}
               </div>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                <Link to="/flashcards" className="landing-primary-button">
-                  <LandingIcon name="cards" className="h-5 w-5" />
-                  {language === 'kz' ? 'Бастау' : 'Начать'}
-                </Link>
-                <Link to="/flashcards" className="landing-secondary-button">
-                  {language === 'kz' ? 'Толығырақ' : 'Подробнее'}
-                  <LandingIcon name="arrow" className="h-5 w-5" />
-                </Link>
-              </div>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      <section className="relative overflow-hidden px-4 py-20">
-        <OrbitalBackdrop />
-        <div className="relative z-10 mx-auto max-w-7xl rounded-[2rem] border border-white/10 bg-white/[0.045] px-6 py-20 text-center backdrop-blur-2xl">
-          <Badge tone="violet" icon="rocket">{language === 'kz' ? 'Жоғары баллға жолды бастаңыз' : 'Начните путь к высоким баллам'}</Badge>
-          <h2 className="mt-6 text-5xl font-black text-white [letter-spacing:0] md:text-7xl">
-            {text.ctaTitle.split(' ')[0]} <span className="bg-gradient-to-r from-pink-300 to-violet-400 bg-clip-text text-transparent">{text.ctaTitle.split(' ').slice(1).join(' ')}</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/60">{text.ctaDesc}</p>
-          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-            <Link to="/register" className="landing-primary-button">
-              {language === 'kz' ? 'Тегін тіркелу' : 'Бесплатная регистрация'}
-              <LandingIcon name="arrow" className="h-5 w-5" />
-            </Link>
-            <button onClick={() => handleStartTest()} className="landing-secondary-button">
-              {language === 'kz' ? 'Демо көру' : 'Попробовать демо'}
-              <LandingIcon name="arrow" className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-5 md:grid-cols-5">
-            {['1000+', '14+', 'AI', '98%', '24/7'].map((item) => (
-              <div key={item} className="text-2xl font-black text-pink-300">{item}</div>
-            ))}
-          </div>
+      {/* ---------- Footer ---------- */}
+      <footer className="relative overflow-hidden border-t border-ink/10 dark:border-ink-dark/10">
+        <div className="pointer-events-none absolute inset-0 text-ink dark:text-ink-dark">
+          <KazakhPattern />
         </div>
-      </section>
-
-      <footer className="relative overflow-hidden border-t border-white/10 bg-black/10 py-16">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/30 to-transparent"></div>
-        <div className="pointer-events-none absolute left-1/2 top-0 h-44 w-[42rem] -translate-x-1/2 rounded-full bg-violet-500/10 blur-3xl"></div>
-
-        <div className="container relative z-10 mx-auto px-4 text-white/50 sm:px-6 lg:px-8">
-          <div className="grid gap-10 border-b border-white/10 pb-12 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr]">
+        <div className="container relative mx-auto px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-10 border-b border-ink/10 pb-12 dark:border-ink-dark/10 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr]">
             <div>
               <div className="flex items-center gap-3">
-                <img src="/images/logo.png" alt="QazMind" className="h-11 w-11" />
+                <img src="/images/logo.png" alt="QazMind" className="h-10 w-10 rounded-xl" />
                 <div>
-                  <p className="text-xl font-black text-white [letter-spacing:0]">QazMind</p>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/40">
+                  <p className="font-display text-lg text-ink dark:text-ink-dark">QazMind</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted dark:text-ink-dark/45">
                     {language === 'kz' ? 'ЕНТ дайындық платформасы' : 'Платформа подготовки к ЕНТ'}
                   </p>
                 </div>
               </div>
-              <p className="mt-5 max-w-xs text-sm leading-6 text-white/48">
+              <p className="mt-5 max-w-xs text-sm leading-6 text-ink-muted dark:text-ink-dark/50">
                 {language === 'kz'
                   ? 'AI-ментор, тесттер, подкастар және карточкалар арқылы дайындалуға арналған платформа.'
                   : 'AI-платформа для подготовки к ЕНТ с тестами, подкастами и флеш-карточками.'}
               </p>
-              <div className="mt-6 flex gap-3">
-                {['vk', 'ig', 'tg', 'yt'].map((item) => (
-                  <span key={item} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs font-black uppercase text-white/45">
-                    {item}
-                  </span>
-                ))}
-              </div>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-white [letter-spacing:0]">
+              <h3 className="text-sm font-semibold text-ink dark:text-ink-dark">
                 {language === 'kz' ? 'Жылдам сілтемелер' : 'Быстрые ссылки'}
               </h3>
-              <div className="mt-5 grid gap-3 text-sm">
-                <a href="#features" className="transition hover:text-white">{language === 'kz' ? 'Артықшылықтар' : 'Преимущества'}</a>
-                <a href="#subjects" className="transition hover:text-white">{language === 'kz' ? 'Пәндер' : 'Предметы'}</a>
-                <a href="#podcasts" className="transition hover:text-white">{language === 'kz' ? 'Подкастар' : 'Подкасты'}</a>
-                <a href="#flashcards" className="transition hover:text-white">{language === 'kz' ? 'Карточкалар' : 'Карточки'}</a>
+              <div className="mt-5 grid gap-3 text-sm text-ink-muted dark:text-ink-dark/55">
+                <a href="#features" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Артықшылықтар' : 'Преимущества'}</a>
+                <a href="#subjects" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Пәндер' : 'Предметы'}</a>
+                <a href="#podcasts" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Подкастар' : 'Подкасты'}</a>
+                <a href="#flashcards" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Карточкалар' : 'Карточки'}</a>
               </div>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-white [letter-spacing:0]">
+              <h3 className="text-sm font-semibold text-ink dark:text-ink-dark">
                 {language === 'kz' ? 'Құқықтық ақпарат' : 'Юридическая информация'}
               </h3>
-              <div className="mt-5 grid gap-3 text-sm">
-                <Link to="/privacy" className="transition hover:text-white">{language === 'kz' ? 'Құпиялылық' : 'Конфиденциальность'}</Link>
-                <Link to="/terms" className="transition hover:text-white">{language === 'kz' ? 'Пайдалану шарттары' : 'Условия использования'}</Link>
+              <div className="mt-5 grid gap-3 text-sm text-ink-muted dark:text-ink-dark/55">
+                <Link to="/privacy" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Құпиялылық' : 'Конфиденциальность'}</Link>
+                <Link to="/terms" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Пайдалану шарттары' : 'Условия использования'}</Link>
               </div>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-white [letter-spacing:0]">
+              <h3 className="text-sm font-semibold text-ink dark:text-ink-dark">
                 {language === 'kz' ? 'Байланыс' : 'Контакты'}
               </h3>
-              <div className="mt-5 grid gap-3 text-sm">
-                <a href="mailto:info@qazmind.kz" className="transition hover:text-white">info@qazmind.kz</a>
-                <a href="mailto:support@qazmind.kz" className="transition hover:text-white">support@qazmind.kz</a>
+              <div className="mt-5 grid gap-3 text-sm text-ink-muted dark:text-ink-dark/55">
+                <a href="mailto:info@qazmind.kz" className="transition hover:text-ink dark:hover:text-ink-dark">info@qazmind.kz</a>
+                <a href="mailto:support@qazmind.kz" className="transition hover:text-ink dark:hover:text-ink-dark">support@qazmind.kz</a>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-start justify-between gap-4 pt-8 text-sm md:flex-row md:items-center">
+          <div className="flex flex-col items-start justify-between gap-4 pt-8 text-sm text-ink-muted dark:text-ink-dark/50 md:flex-row md:items-center">
             <p>© 2026 QazMind. {language === 'kz' ? 'Барлық құқықтар сақталған.' : 'Все права защищены.'}</p>
             <div className="flex flex-wrap gap-6">
-              <Link to="/privacy" className="transition hover:text-white">{language === 'kz' ? 'Құпиялылық' : 'Конфиденциальность'}</Link>
-              <Link to="/terms" className="transition hover:text-white">{language === 'kz' ? 'Шарттар' : 'Условия использования'}</Link>
+              <Link to="/privacy" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Құпиялылық' : 'Конфиденциальность'}</Link>
+              <Link to="/terms" className="transition hover:text-ink dark:hover:text-ink-dark">{language === 'kz' ? 'Шарттар' : 'Условия использования'}</Link>
             </div>
           </div>
         </div>

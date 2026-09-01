@@ -8,6 +8,25 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Landing-page redesign tokens (kept separate from `primary` so the
+        // rest of the app — which already relies on `primary-*` — is untouched).
+        paper: {
+          DEFAULT: '#FAF7F1',
+          soft: '#F3EEE4',
+        },
+        ink: {
+          DEFAULT: '#1C1F26',
+          dark: '#F4F1E8',
+          muted: '#5B5D63',
+        },
+        gold: {
+          DEFAULT: '#B07C34',
+          soft: '#DCC9A3',
+          bright: '#E0AD5C',
+          // Darker variant for small/regular-weight running text on `paper`
+          // — the default `gold` only clears WCAG AA at large-text sizes.
+          ink: '#8A5A1B',
+        },
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -27,6 +46,8 @@ export default {
       fontFamily: {
         sans: ['Inter', 'Noto Sans', 'system-ui', 'sans-serif'],
         heading: ['Poppins', 'Inter', 'Noto Sans', 'sans-serif'],
+        // Landing-page display serif — full Cyrillic/Kazakh coverage.
+        display: ['"PT Serif"', 'Georgia', 'serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

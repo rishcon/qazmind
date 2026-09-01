@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -80,41 +80,47 @@
 }
 
 @layer components {
+  /* ---- Landing page redesign (2026) — calm, editorial, one accent ---- */
+  .landing-page-bg {
+    @apply bg-paper text-ink;
+  }
+
+  .dark .landing-page-bg {
+    @apply bg-ink text-ink-dark;
+  }
+
   .landing-primary-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 via-violet-500 to-pink-500 px-7 py-4 text-base font-black text-white shadow-[0_18px_42px_rgba(217,70,239,0.28)] transition duration-300 hover:scale-[1.02] hover:shadow-[0_22px_52px_rgba(34,211,238,0.24)] active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-3.5 text-[15px] font-semibold text-paper transition duration-200 hover:bg-ink/85 active:scale-[0.98];
+  }
+
+  .dark .landing-primary-button {
+    @apply bg-paper text-ink hover:bg-paper/85;
   }
 
   .landing-secondary-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-7 py-4 text-base font-black text-white shadow-[0_14px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-300 hover:scale-[1.02] hover:border-white/30 hover:bg-white/[0.08] active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-ink/15 px-7 py-3.5 text-[15px] font-semibold text-ink transition duration-200 hover:border-ink/35 hover:bg-ink/[0.03] active:scale-[0.98];
   }
 
-  .landing-glass {
-    @apply border border-white/12 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur-2xl;
+  .dark .landing-secondary-button {
+    @apply border-ink-dark/20 text-ink-dark hover:border-ink-dark/40 hover:bg-ink-dark/[0.05];
   }
 
-  .landing-page-bg {
-    position: relative;
-    background:
-      radial-gradient(circle at 12% 8%, rgba(34, 211, 238, 0.12), transparent 22rem),
-      radial-gradient(circle at 88% 10%, rgba(217, 70, 239, 0.18), transparent 28rem),
-      radial-gradient(circle at 50% 42%, rgba(124, 58, 237, 0.13), transparent 34rem),
-      radial-gradient(circle at 12% 72%, rgba(236, 72, 153, 0.09), transparent 30rem),
-      radial-gradient(circle at 86% 84%, rgba(34, 211, 238, 0.08), transparent 28rem),
-      linear-gradient(180deg, #050615 0%, #07071c 45%, #050615 100%);
-    background-attachment: fixed;
+  .landing-card {
+    @apply rounded-2xl border border-ink/10 bg-white/60 transition duration-200;
   }
 
-  .landing-page-bg::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background:
-      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.014) 1px, transparent 1px);
-    background-size: 96px 96px;
-    mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+  .dark .landing-card {
+    @apply border-ink-dark/10 bg-white/[0.03];
+  }
+
+  .landing-eyebrow {
+    /* gold-ink on light paper / gold-bright on dark ink — both clear WCAG AA
+       at this size; the single mid-tone `gold` does not at 13px. */
+    @apply text-[13px] font-semibold uppercase tracking-[0.14em] text-gold-ink;
+  }
+
+  .dark .landing-eyebrow {
+    @apply text-gold-bright;
   }
 
   /* Кнопки */
@@ -369,38 +375,14 @@
   animation: pulseScale 2s ease-in-out infinite;
 }
 
-@keyframes landingFloat {
-  0%, 100% {
-    translate: 0 0;
+/* prefers-reduced-motion: framer-motion reveals on the landing page check
+   this via useReducedMotion() in Landing.jsx; this covers any plain-CSS
+   transitions/animations left in the app. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  50% {
-    translate: 0 -14px;
-  }
-}
-
-@keyframes landingOrbit {
-  0% {
-    transform: rotate(0deg) scaleX(1.35);
-  }
-  100% {
-    transform: rotate(360deg) scaleX(1.35);
-  }
-}
-
-.landing-float {
-  animation: landingFloat 6s ease-in-out infinite;
-}
-
-.landing-float-delay {
-  animation-delay: -2s;
-}
-
-.landing-orbit {
-  animation: landingOrbit 24s linear infinite;
-  transform-origin: center;
-}
-
-.landing-orbit-slow {
-  animation-duration: 36s;
-  animation-direction: reverse;
 }

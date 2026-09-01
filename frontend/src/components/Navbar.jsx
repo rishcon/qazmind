@@ -110,52 +110,31 @@ export default function Navbar() {
     navigate('/')
   }
 
-  const mobileButtonBase = isLanding
+  const iconButtonClass = isDark
     ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
-    : isDark
-      ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1] hover:text-white'
-      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950'
 
   return (
-    <nav className={`${isLanding ? 'fixed inset-x-0 top-4 z-50 px-3 sm:px-5' : 'sticky top-0 z-50'} backdrop-blur-2xl ${
-      isLanding
-        ? 'text-white'
-        : isDark
-          ? 'border-b border-white/10 bg-slate-950/80 text-white shadow-[0_14px_42px_rgba(2,6,23,0.32)]'
-          : 'border-b border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
+    <nav className={`sticky top-0 z-50 backdrop-blur-xl ${
+      isDark
+        ? 'border-b border-white/10 bg-slate-950/85 text-white'
+        : 'border-b border-slate-200/80 bg-white/90 text-slate-900'
     }`}>
-      {!isLanding && (
-        <>
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent dark:via-cyan-300/60"></div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/30 to-transparent dark:via-fuchsia-400/40"></div>
-        </>
-      )}
-
-      <div className={`relative mx-auto max-w-7xl ${isLanding ? 'rounded-[1.6rem] border border-white/10 bg-slate-950/50 px-4 shadow-[0_22px_70px_rgba(0,0,0,0.34)] ring-1 ring-fuchsia-300/10' : 'px-4 sm:px-6 lg:px-8'}`}>
-        {isLanding && (
-          <>
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent"></div>
-            <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/40 to-transparent"></div>
-          </>
-        )}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-20 items-center justify-between gap-3 py-2.5 sm:py-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:h-11 sm:w-11 ${
-                isLanding
-                  ? 'border-white/10 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
-                  : isDark
-                    ? 'border-white/10 bg-white/[0.08] shadow-[0_12px_28px_rgba(0,0,0,0.18)]'
-                    : 'border-slate-200 bg-white'
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border sm:h-11 sm:w-11 ${
+                isDark ? 'border-white/10 bg-white/[0.08]' : 'border-slate-200 bg-white'
               }`}>
                 <img src="/images/logo.png" alt="QazMind Logo" className="h-7 w-7 object-contain sm:h-8 sm:w-8" />
               </div>
               <div className="min-w-0 max-w-[14rem]">
-                <p className={`truncate text-lg font-black tracking-tight sm:text-xl ${
-                  isLanding ? 'text-white' : isDark ? 'text-white' : 'text-slate-900'
-                }`}>QazMind</p>
+                <p className={`truncate text-lg font-black tracking-tight sm:text-xl ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  QazMind
+                </p>
                 <p className={`hidden truncate whitespace-nowrap text-[10px] font-bold uppercase leading-4 tracking-[0.22em] md:block ${
-                  isLanding ? 'text-cyan-100/80' : isDark ? 'text-cyan-100/80' : 'text-slate-500'
+                  isDark ? 'text-white/45' : 'text-slate-500'
                 }`}>
                   {t[language].tagline}
                 </p>
@@ -168,12 +147,10 @@ export default function Navbar() {
                     <a
                       key={item.href}
                       href={item.href}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      isLanding
-                          ? 'text-white/90 hover:bg-violet-500/20 hover:text-white hover:shadow-[0_0_24px_rgba(168,85,247,0.22)]'
-                          : isDark
-                            ? 'text-white/90 hover:bg-white/[0.08] hover:text-white'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                        isDark
+                          ? 'text-white/85 hover:bg-white/[0.08] hover:text-white'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                       }`}
                     >
                       {item.label}
@@ -187,7 +164,7 @@ export default function Navbar() {
                         location.pathname === item.to
                           ? isDark ? 'bg-white/[0.1] text-white' : 'bg-slate-900 text-white'
                           : isDark
-                            ? 'text-white/90 hover:bg-white/[0.08] hover:text-white'
+                            ? 'text-white/85 hover:bg-white/[0.08] hover:text-white'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                       }`}
                     >
@@ -200,7 +177,7 @@ export default function Navbar() {
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <button
               onClick={toggleTheme}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition sm:h-11 sm:w-11 ${mobileButtonBase}`}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition sm:h-11 sm:w-11 ${iconButtonClass}`}
               title={t[language].theme}
             >
               {theme === 'light' ? (
@@ -214,19 +191,13 @@ export default function Navbar() {
               )}
             </button>
 
-            <div className={`flex items-center rounded-2xl border p-1 ${
-              isLanding
-                ? 'border-white/10 bg-white/[0.05]'
-                : isDark
-                  ? 'border-white/10 bg-white/[0.05]'
-                  : 'border-slate-200 bg-white'
-            }`}>
+            <div className={`flex items-center rounded-2xl border p-1 ${isDark ? 'border-white/10 bg-white/[0.05]' : 'border-slate-200 bg-white'}`}>
               <button
                 onClick={() => setLanguage('kz')}
                 className={`rounded-xl px-2.5 py-2 text-[11px] font-bold transition sm:px-4 sm:text-xs ${
                   language === 'kz'
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                    : `${isLanding ? 'text-white/80 hover:text-white' : isDark ? 'text-white/80 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`
+                    : isDark ? 'text-white/70 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 KZ
@@ -236,7 +207,7 @@ export default function Navbar() {
                 className={`rounded-xl px-2.5 py-2 text-[11px] font-bold transition sm:px-4 sm:text-xs ${
                   language === 'ru'
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                    : `${isLanding ? 'text-white/80 hover:text-white' : isDark ? 'text-white/80 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`
+                    : isDark ? 'text-white/70 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 RU
@@ -261,7 +232,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(168,85,247,0.24)] transition hover:scale-[1.02] sm:px-5"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90 sm:px-5"
                 >
                   {t[language].openLearning}
                   <NavIcon className="h-4 w-4">
@@ -284,16 +255,16 @@ export default function Navbar() {
                 <Link
                   to="/login"
                   className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                    isLanding
-                      ? 'border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.1]'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.08]'
+                    isDark
+                      ? 'border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
                   {t[language].login}
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(168,85,247,0.24)] transition hover:scale-[1.02] sm:px-5"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90 sm:px-5"
                 >
                   {t[language].register}
                   <NavIcon className="h-4 w-4">
@@ -306,19 +277,15 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen((value) => !value)}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition md:hidden ${mobileButtonBase}`}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition md:hidden ${iconButtonClass}`}
               aria-label="Toggle navigation menu"
               aria-expanded={isMobileMenuOpen}
             >
               <NavIcon className="h-5 w-5">
                 {isMobileMenuOpen ? (
-                  <>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-                  </>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
                 ) : (
-                  <>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-                  </>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
                 )}
               </NavIcon>
             </button>
@@ -327,9 +294,7 @@ export default function Navbar() {
 
         {isMobileMenuOpen && (
           <div className={`mb-4 rounded-[28px] border p-4 md:hidden ${
-            isLanding
-              ? 'border-white/10 bg-white/[0.06] text-white'
-              : 'border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-950/90 dark:text-white'
+            isDark ? 'border-white/10 bg-slate-950/90 text-white' : 'border-slate-200 bg-white text-slate-900'
           }`}>
             <div className="flex flex-col gap-2">
               {(isLanding ? landingLinks : appLinks).map((item) =>
@@ -338,9 +303,9 @@ export default function Navbar() {
                     key={item.href}
                     href={item.href}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                      isLanding
+                      isDark
                         ? 'bg-white/[0.04] text-white/90 hover:bg-white/[0.1] hover:text-white'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-white/[0.04] dark:text-white/90 dark:hover:bg-white/[0.1]'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     {item.label}
@@ -372,7 +337,7 @@ export default function Navbar() {
                   )}
                   <Link
                     to="/dashboard"
-                    className="inline-flex items-center justify-between rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(168,85,247,0.24)]"
+                    className="inline-flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
                   >
                     {t[language].openLearning}
                     <NavIcon className="h-4 w-4">
@@ -391,16 +356,14 @@ export default function Navbar() {
                   <Link
                     to="/login"
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                      isLanding
-                        ? 'bg-white/[0.04] text-white/90 hover:bg-white/[0.1]'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-white/[0.04] dark:text-white/90 dark:hover:bg-white/[0.1]'
+                      isDark ? 'bg-white/[0.04] text-white/90 hover:bg-white/[0.1]' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     {t[language].login}
                   </Link>
                   <Link
                     to="/register"
-                    className="inline-flex items-center justify-between rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(168,85,247,0.24)]"
+                    className="inline-flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
                   >
                     {t[language].register}
                     <NavIcon className="h-4 w-4">
