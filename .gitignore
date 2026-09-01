@@ -1,0 +1,16 @@
+# Local runtime configuration and data
+.env
+backend/.env
+frontend/.env
+data/
+docker-compose-up.*.log
+
+# Local dependencies and build output
+backend/.venv/
+backend/venv/
+frontend/node_modules/
+frontend/dist/
+
+# Python cache
+__pycache__/
+*.py[cod]
