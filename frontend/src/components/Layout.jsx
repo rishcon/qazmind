@@ -1,11 +1,15 @@
 ﻿import { Outlet, Link, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
+import Footer from './Footer'
 import { useLanguageStore } from '../store/languageStore'
 
 export default function Layout() {
   const { language } = useLanguageStore()
   const location = useLocation()
   const isLanding = location.pathname === '/'
+  // Login/Register are styled after the landing page, so they get its light
+  // footer too instead of the app's generic dark one.
+  const useLandingFooter = isLanding || location.pathname === '/login' || location.pathname === '/register'
 
   const t = {
     kz: {
@@ -28,7 +32,8 @@ export default function Layout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      {!isLanding && (
+      {useLandingFooter && !isLanding && <Footer />}
+      {!useLandingFooter && (
       <footer className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-gray-300 py-12 mt-12 border-t border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">

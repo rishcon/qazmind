@@ -13,6 +13,17 @@ function NavIcon({ children, className = 'w-5 h-5' }) {
   )
 }
 
+function LandingLogo() {
+  return (
+    <span className="qm-nav-logo">
+      <svg viewBox="0 0 40 44" aria-hidden="true">
+        <path d="M20 3 35 12v20l-8 5-7-5 8-5v-11l-8-5-8 5v12l9 6-7 5L5 34V12L20 3Z" fill="currentColor" />
+      </svg>
+      <strong>QazMind</strong>
+    </span>
+  )
+}
+
 export default function Navbar() {
   const { isAuthenticated, logout, user, token, updateUser } = useAuthStore()
   const { language, setLanguage } = useLanguageStore()
@@ -56,6 +67,8 @@ export default function Navbar() {
 
   const isAdmin = user?.role === 'admin'
   const isLanding = location.pathname === '/'
+  // Login/Register are styled after the landing page, so they reuse its header too.
+  const useLandingNav = isLanding || location.pathname === '/login' || location.pathname === '/register'
   const isDark = theme === 'dark'
 
   const t = {
@@ -108,6 +121,53 @@ export default function Navbar() {
     setIsMobileMenuOpen(false)
     logout()
     navigate('/')
+  }
+
+  if (useLandingNav) {
+    const conceptLinks = language === 'kz'
+      ? [
+          { href: '/#how', label: 'Қалай жұмыс істейді' },
+          { href: '/#subjects', label: 'Пәндер' },
+          { href: '/#capabilities', label: 'Мүмкіндіктер' },
+        ]
+      : [
+          { href: '/#how', label: 'Как это работает' },
+          { href: '/#subjects', label: 'Предметы' },
+          { href: '/#capabilities', label: 'Возможности' },
+        ]
+
+    return (
+      <nav className="qm-landing-nav">
+        <div className="qm-nav-inner">
+          <Link to="/" aria-label="QazMind"><LandingLogo /></Link>
+          <div className="qm-nav-links">
+            {conceptLinks.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
+          </div>
+          <div className="qm-nav-actions">
+            <div className="qm-nav-lang">
+              <button className={language === 'ru' ? 'active' : ''} onClick={() => setLanguage('ru')}>RU</button>
+              <span>/</span>
+              <button className={language === 'kz' ? 'active' : ''} onClick={() => setLanguage('kz')}>KZ</button>
+            </div>
+            {isAuthenticated ? (
+              <Link className="qm-nav-login" to="/dashboard">{language === 'kz' ? 'Кабинет' : 'Кабинет'}</Link>
+            ) : (
+              <Link className="qm-nav-login" to="/login">{language === 'kz' ? 'Кіру' : 'Войти'}</Link>
+            )}
+            <Link className="qm-nav-start" to={isAuthenticated ? '/dashboard' : '/register'}>{language === 'kz' ? 'Бастау' : 'Начать'}</Link>
+            <button className="qm-nav-menu" onClick={() => setIsMobileMenuOpen((value) => !value)} aria-expanded={isMobileMenuOpen} aria-label="Меню">
+              <NavIcon>{isMobileMenuOpen ? <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /> : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}</NavIcon>
+            </button>
+          </div>
+        </div>
+        {isMobileMenuOpen && (
+          <div className="qm-nav-mobile">
+            {conceptLinks.map((item) => <a key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>{item.label}</a>)}
+            <Link to={isAuthenticated ? '/dashboard' : '/login'}>{isAuthenticated ? (language === 'kz' ? 'Кабинет' : 'Кабинет') : (language === 'kz' ? 'Кіру' : 'Войти')}</Link>
+          </div>
+        )}
+      </nav>
+    )
   }
 
   const iconButtonClass = isDark

@@ -14,7 +14,8 @@ RUN mkdir -p /app/data /app/seed \
     && cp /app/qazmind.db /app/seed/qazmind.db
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint
-RUN chmod +x /usr/local/bin/docker-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint \
+    && chmod +x /usr/local/bin/docker-entrypoint
 
 EXPOSE 8000
 
