@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # 48 hours: long enough for an active study session, while JWT expiry still
+    # ensures an unattended device is signed out automatically.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 48 * 60
     
     # OpenAI
     OPENAI_API_KEY: str = ""

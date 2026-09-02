@@ -33,8 +33,13 @@ api.interceptors.response.use(
                           error.config?.url?.includes('/auth/register')
     
     if (error.response?.status === 401 && !isAuthEndpoint) {
-      useAuthStore.getState().logout()
-      window.location.href = '/login'
+      // Keep the current screen mounted long enough to explain what happened.
+      // A single app-level modal owns the sign-out flow for every API request.
+      const { isAuthenticated, logout } = useAuthStore.getState()
+      if (isAuthenticated) {
+        logout()
+        window.dispatchEvent(new Event('qazmind:session-expired'))
+      }
     }
     return Promise.reject(error)
   }

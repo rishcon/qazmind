@@ -37,6 +37,10 @@ def ensure_schema_compatibility(db: Session) -> None:
             ("ent_date", "ALTER TABLE users ADD COLUMN ent_date DATETIME"),
             ("daily_goal_minutes", "ALTER TABLE users ADD COLUMN daily_goal_minutes INTEGER DEFAULT 30"),
             ("profile_completed", "ALTER TABLE users ADD COLUMN profile_completed BOOLEAN DEFAULT FALSE"),
+            ("first_name", "ALTER TABLE users ADD COLUMN first_name VARCHAR(80)"),
+            ("last_name", "ALTER TABLE users ADD COLUMN last_name VARCHAR(80)"),
+            ("middle_name", "ALTER TABLE users ADD COLUMN middle_name VARCHAR(80)"),
+            ("birth_date", "ALTER TABLE users ADD COLUMN birth_date DATETIME"),
         ]
 
         for column_name, ddl in user_migrations:

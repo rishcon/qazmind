@@ -5,6 +5,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////app/data/qazmind.db
       SECRET_KEY: ${SECRET_KEY:-change-this-before-public-deployment}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-2880}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       CORS_ORIGINS: '["http://localhost:8081","http://127.0.0.1:8081"]'

@@ -109,29 +109,30 @@ export default function Terms() {
   const t = content[language]
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#f7faf7] px-5 py-10 text-[#003f34] dark:bg-slate-950 dark:text-white sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 mb-4">
+        <div className="mb-10 border-b border-[#dce5df] bg-[#003f34] px-6 py-10 text-white dark:border-white/10 sm:mb-14 sm:px-10 sm:py-14">
+          <p className="text-[10px] font-bold uppercase tracking-[.22em] text-[#c9f53e]">QazMind · Документы</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-.06em] md:text-6xl">
             {t.title}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="mt-5 text-sm text-white/60">
             {t.lastUpdated} 2 января 2026 г.
           </p>
         </div>
 
         {/* Content */}
-        <div className="space-y-8">
+        <div className="divide-y divide-[#dce5df] border-t border-[#dce5df] dark:divide-white/10 dark:border-white/10">
           {t.sections.map((section, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-md transition-shadow duration-200"
+              className="py-7 sm:py-9"
             >
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-purple-600 dark:text-purple-400">
+              <h2 className="text-xl font-semibold tracking-[-.035em] sm:text-2xl">
                 {section.title}
               </h2>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#52615c] dark:text-white/65">
                 {section.content}
               </p>
             </div>
@@ -139,11 +140,11 @@ export default function Terms() {
         </div>
 
         {/* Agreement Section */}
-        <div className="mt-12 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-800 dark:to-slate-700 rounded-xl p-8 border border-purple-200 dark:border-slate-600">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+        <div className="mt-12 border-t-2 border-[#c9f53e] bg-[#eaf3ed] p-6 dark:bg-white/[.05] sm:p-8">
+          <h2 className="text-2xl font-semibold tracking-[-.04em]">
             {language === 'kz' ? 'Келісім' : 'Согласие'}
           </h2>
-          <p className="text-gray-700 dark:text-gray-300">
+          <p className="mt-3 text-sm leading-7 text-[#52615c] dark:text-white/65">
             {language === 'kz'
               ? 'QazMind қызметін пайдалану арқылы, сіз осы Қызмет Қарымының барлық шарттарына келісесіз және оларды орындауға ықыласыз.'
               : 'Используя сервис QazMind, вы подтверждаете, что прочитали эти Условия использования, понимаете и согласны с ними.'}

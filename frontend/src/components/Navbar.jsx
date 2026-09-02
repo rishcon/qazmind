@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import { useThemeStore } from '../store/themeStore'
 import api from '../utils/api'
+import AccountSettingsModal from './AccountSettingsModal'
+import LogoutConfirmModal from './LogoutConfirmModal'
 
 function NavIcon({ children, className = 'w-5 h-5' }) {
   return (
@@ -31,6 +33,9 @@ export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated || !token || user?.role) {
@@ -126,6 +131,11 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const requestLogout = () => {
+    setIsProfileMenuOpen(false)
+    setIsLogoutConfirmOpen(true)
+  }
+
   if (isTestRoute) {
     return (
       <nav className="sticky top-0 z-50 border-b border-[#dce5df] bg-[#f7faf7]/95 text-[#003f34] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white">
@@ -146,7 +156,7 @@ export default function Navbar() {
     ]
 
     return (
-      <nav className="sticky top-0 z-50 border-b border-[#dce5df] bg-[#f7faf7]/95 text-[#003f34] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white">
+      <><nav className="sticky top-0 z-50 border-b border-[#dce5df] bg-[#f7faf7]/95 text-[#003f34] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white">
         <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
           <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5" aria-label="QazMind — личный кабинет">
             <span className="flex h-9 w-9 items-center justify-center bg-[#003f34] text-[#c9f53e] dark:bg-[#c9f53e] dark:text-[#003f34]"><svg className="h-5 w-5" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 3 35 12v20l-8 5-7-5 8-5v-11l-8-5-8 5v12l9 6-7 5L5 34V12L20 3Z" fill="currentColor" /></svg></span>
@@ -164,12 +174,12 @@ export default function Navbar() {
               <button onClick={() => setLanguage('kz')} className={`px-2 py-1 text-[10px] font-bold ${language === 'kz' ? 'bg-[#003f34] text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'text-[#78847e] dark:text-white/50'}`}>KZ</button>
             </div>
             <button onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center border border-[#dce5df] text-[#00715c] transition hover:bg-[#eef5f0] dark:border-white/15 dark:text-[#c9f53e] dark:hover:bg-white/10" title={t[language].theme}><NavIcon className="h-4 w-4">{theme === 'light' ? <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3c0 .58.05 1.15.15 1.7A7 7 0 0021 12.79z" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1.5M12 19.5V21M4.5 12H3m18 0h-1.5M18.364 5.636l-1.06 1.06M6.696 17.304l-1.06 1.06m12.728 0l-1.06-1.06M6.696 6.696l-1.06-1.06M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />}</NavIcon></button>
-            <button onClick={handleLogout} className="hidden min-h-9 items-center gap-2 bg-[#003f34] px-3 text-xs font-bold text-white transition hover:bg-[#005345] dark:bg-[#c9f53e] dark:text-[#003f34] sm:inline-flex"><span className="max-w-32 truncate">{user?.email || (language === 'kz' ? 'Шығу' : 'Выйти')}</span><NavIcon className="h-3.5 w-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 12h8m0 0-3-3m3 3-3 3M12 5v-.75A2.25 2.25 0 009.75 2h-3A2.25 2.25 0 004.5 4.25v15.5A2.25 2.25 0 006.75 22h3A2.25 2.25 0 0012 19.75V19" /></NavIcon></button>
+            <div className="relative hidden sm:block"><button onClick={() => setIsProfileMenuOpen((value) => !value)} className="flex min-h-9 items-center gap-2 bg-[#003f34] px-3 text-xs font-bold text-white transition hover:bg-[#005345] dark:bg-[#c9f53e] dark:text-[#003f34]"><span className="max-w-32 truncate">{user?.email}</span><NavIcon className={`h-3.5 w-3.5 transition ${isProfileMenuOpen ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6" /></NavIcon></button>{isProfileMenuOpen && <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 border border-[#dce5df] bg-[#f7faf7] p-1.5 shadow-xl dark:border-white/10 dark:bg-slate-900"><button onClick={() => { setIsProfileMenuOpen(false); setIsSettingsOpen(true) }} className="w-full px-3 py-2.5 text-left text-sm font-semibold hover:bg-[#eaf3ed] dark:hover:bg-white/[.07]">{language === 'kz' ? 'Аккаунт баптаулары' : 'Настройки аккаунта'}</button><button onClick={requestLogout} className="w-full px-3 py-2.5 text-left text-sm font-semibold text-[#b43c35] hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10">{language === 'kz' ? 'Шығу' : 'Выйти'}</button></div>}</div>
             <button type="button" onClick={() => setIsMobileMenuOpen((value) => !value)} className="flex h-9 w-9 items-center justify-center border border-[#dce5df] text-[#00715c] dark:border-white/15 dark:text-[#c9f53e] lg:hidden" aria-expanded={isMobileMenuOpen} aria-label="Меню"><NavIcon className="h-4 w-4">{isMobileMenuOpen ? <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /> : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}</NavIcon></button>
           </div>
         </div>
-        {isMobileMenuOpen && <div className="border-t border-[#dce5df] bg-[#f7faf7] px-5 py-3 dark:border-white/10 dark:bg-slate-950 lg:hidden"><div className="mx-auto flex max-w-7xl flex-col gap-1">{cabinetLinks.map((item) => <Link key={item.to} to={item.to} className="px-3 py-3 text-sm font-semibold hover:bg-[#eef5f0] dark:hover:bg-white/10">{item.label}</Link>)}<button onClick={handleLogout} className="px-3 py-3 text-left text-sm font-semibold text-[#b43c35] dark:text-red-300">{language === 'kz' ? 'Шығу' : 'Выйти'}</button></div></div>}
-      </nav>
+        {isMobileMenuOpen && <div className="border-t border-[#dce5df] bg-[#f7faf7] px-5 py-3 dark:border-white/10 dark:bg-slate-950 lg:hidden"><div className="mx-auto flex max-w-7xl flex-col gap-1">{cabinetLinks.map((item) => <Link key={item.to} to={item.to} className="px-3 py-3 text-sm font-semibold hover:bg-[#eef5f0] dark:hover:bg-white/10">{item.label}</Link>)}<button onClick={() => { setIsMobileMenuOpen(false); setIsSettingsOpen(true) }} className="px-3 py-3 text-left text-sm font-semibold text-[#00715c] dark:text-[#c9f53e]">{language === 'kz' ? 'Аккаунт баптаулары' : 'Настройки аккаунта'}</button><button onClick={requestLogout} className="px-3 py-3 text-left text-sm font-semibold text-[#b43c35] dark:text-red-300">{language === 'kz' ? 'Шығу' : 'Выйти'}</button></div></div>}
+      </nav><AccountSettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onDeleted={handleLogout} /><LogoutConfirmModal open={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleLogout} /></>
     )
   }
 

@@ -19,6 +19,10 @@ class User(Base):
     ent_date = Column(DateTime)  # Planned ENT exam date
     daily_goal_minutes = Column(Integer, default=30)  # Daily study goal in minutes
     profile_completed = Column(Boolean, default=False)  # Has user completed initial setup
+    first_name = Column(String(80), nullable=True)
+    last_name = Column(String(80), nullable=True)
+    middle_name = Column(String(80), nullable=True)
+    birth_date = Column(DateTime, nullable=True)
     
     # Relationships
     test_attempts = relationship("TestAttempt", back_populates="user")

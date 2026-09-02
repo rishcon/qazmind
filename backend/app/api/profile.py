@@ -1,13 +1,14 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.security import get_password_hash, verify_password
 from app.db.database import get_db
-from app.db.models import Subject, TestAttempt, User
+from app.db.models import AiExplanation, AiTutorMessage, AiTutorSession, FlashcardReview, QuestionFeedback, Subject, TestAttempt, User, WrongAnswer
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -16,6 +17,20 @@ class ProfileUpdate(BaseModel):
     selected_subjects: Optional[List[int]] = None
     ent_date: Optional[str] = None
     daily_goal_minutes: Optional[int] = None
+    first_name: Optional[str] = Field(default=None, max_length=80)
+    last_name: Optional[str] = Field(default=None, max_length=80)
+    middle_name: Optional[str] = Field(default=None, max_length=80)
+    birth_date: Optional[date] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=6, max_length=256)
+
+
+class AccountDeletion(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    email_confirmation: str = Field(min_length=3, max_length=320)
 
 
 class SubjectStats(BaseModel):
@@ -44,6 +59,10 @@ def get_profile(
         "daily_goal_minutes": current_user.daily_goal_minutes,
         "profile_completed": current_user.profile_completed,
         "created_at": current_user.created_at.isoformat()
+        ,"first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "middle_name": current_user.middle_name,
+        "birth_date": current_user.birth_date.date().isoformat() if current_user.birth_date else None,
     }
 
 
@@ -63,6 +82,14 @@ def update_profile(
     if profile_data.daily_goal_minutes is not None:
         current_user.daily_goal_minutes = profile_data.daily_goal_minutes
 
+    for field in ("first_name", "last_name", "middle_name"):
+        value = getattr(profile_data, field)
+        if value is not None:
+            setattr(current_user, field, value.strip() or None)
+
+    if profile_data.birth_date is not None:
+        current_user.birth_date = datetime.combine(profile_data.birth_date, datetime.min.time())
+
     db.commit()
     db.refresh(current_user)
 
@@ -73,8 +100,53 @@ def update_profile(
             "ent_date": current_user.ent_date.isoformat() if current_user.ent_date else None,
             "daily_goal_minutes": current_user.daily_goal_minutes,
             "profile_completed": current_user.profile_completed
+            ,"first_name": current_user.first_name,
+            "last_name": current_user.last_name,
+            "middle_name": current_user.middle_name,
+            "birth_date": current_user.birth_date.date().isoformat() if current_user.birth_date else None,
         }
     }
+
+
+@router.put("/password")
+def change_password(
+    payload: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    current_user.password_hash = get_password_hash(payload.new_password)
+    db.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.delete("/me")
+def delete_account(
+    payload: AccountDeletion,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator account cannot be deleted here")
+    if payload.email_confirmation.strip().lower() != current_user.email.lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email confirmation does not match")
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+
+    # Explicitly remove user-owned records so account deletion is reliable for
+    # existing SQLite databases that were created without cascade constraints.
+    db.query(AiExplanation).filter(AiExplanation.user_id == current_user.id).delete(synchronize_session=False)
+    db.query(WrongAnswer).filter(WrongAnswer.user_id == current_user.id).delete(synchronize_session=False)
+    db.query(FlashcardReview).filter(FlashcardReview.user_id == current_user.id).delete(synchronize_session=False)
+    db.query(QuestionFeedback).filter(QuestionFeedback.user_id == current_user.id).delete(synchronize_session=False)
+    tutor_session_ids = db.query(AiTutorSession.id).filter(AiTutorSession.user_id == current_user.id)
+    db.query(AiTutorMessage).filter(AiTutorMessage.session_id.in_(tutor_session_ids)).delete(synchronize_session=False)
+    db.query(AiTutorSession).filter(AiTutorSession.user_id == current_user.id).delete(synchronize_session=False)
+    db.query(TestAttempt).filter(TestAttempt.user_id == current_user.id).delete(synchronize_session=False)
+    db.delete(current_user)
+    db.commit()
+    return {"message": "Account deleted successfully"}
 
 
 @router.get("/stats")
