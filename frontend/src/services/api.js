@@ -54,6 +54,11 @@ export const testService = {
     return response.data
   },
 
+  abandonTest: async (attemptId) => {
+    const response = await api.post(`/tests/${attemptId}/abandon`)
+    return response.data
+  },
+
   getTestResult: async (attemptId) => {
     const response = await api.get(`/tests/${attemptId}/result`)
     return response.data

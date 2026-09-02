@@ -1,355 +1,45 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useLanguageStore } from '../store/languageStore'
 import { useThemeStore } from '../store/themeStore'
 import AudioPlayer from '../components/AudioPlayer'
+import SubjectIcon from '../components/SubjectIcon'
 import api from '../utils/api'
 
-function PodcastIcon({ children, className = 'h-5 w-5' }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.9" viewBox="0 0 24 24" aria-hidden="true">
-      {children}
-    </svg>
-  )
-}
+function Icon({ children, className = 'h-5 w-5', fill = 'none' }) { return <svg aria-hidden="true" className={className} fill={fill} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">{children}</svg> }
 
-const difficultyTone = {
-  easy: 'border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200',
-  medium: 'border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200',
-  hard: 'border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200',
-}
-
-const subjectOrder = [
-  'История Казахстана',
-  'Математическая грамотность',
-  'Грамотность чтения',
-  'Математика',
-  'Физика',
-  'Биология',
-  'Химия',
-  'Иностранный язык (Английский)',
-  'Всемирная история',
-  'География',
-  'Казахский язык',
-  'Русский язык',
-  'Литература',
-  'Информатика',
-]
-
-const subjectGlyphs = {
-  'История Казахстана': { label: 'KZ', tone: 'from-amber-500 to-orange-500' },
-  'Математическая грамотность': { label: '12', tone: 'from-blue-500 to-cyan-500' },
-  'Грамотность чтения': { label: 'Aa', tone: 'from-emerald-500 to-teal-500' },
-  Математика: { label: 'fx', tone: 'from-yellow-500 to-amber-500' },
-  Физика: { label: 'at', tone: 'from-violet-500 to-fuchsia-500' },
-  Биология: { label: 'DNA', tone: 'from-lime-500 to-green-500' },
-  Химия: { label: 'H2O', tone: 'from-cyan-500 to-sky-500' },
-  'Иностранный язык (Английский)': { label: 'EN', tone: 'from-slate-600 to-slate-800' },
-  'Всемирная история': { label: 'GL', tone: 'from-blue-600 to-indigo-600' },
-  География: { label: 'MAP', tone: 'from-emerald-500 to-cyan-500' },
-  'Казахский язык': { label: 'KZ', tone: 'from-cyan-500 to-teal-500' },
-  'Русский язык': { label: 'RU', tone: 'from-slate-500 to-slate-700' },
-  Литература: { label: 'BK', tone: 'from-rose-500 to-pink-500' },
-  Информатика: { label: 'DEV', tone: 'from-slate-700 to-slate-900' },
-}
-
-function getSubjectOrderIndex(subject) {
-  const name = subject.name_ru
-  const index = subjectOrder.indexOf(name)
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index
-}
-
-function SubjectGlyph({ subject }) {
-  const config = subjectGlyphs[subject.name_ru] || {
-    label: (subject.name_ru || 'SB').slice(0, 2).toUpperCase(),
-    tone: 'from-cyan-500 to-violet-500',
-  }
-
-  return (
-    <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-xl bg-gradient-to-br ${config.tone} px-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)]`}>
-      {config.label}
-    </span>
-  )
+const difficulty = {
+  easy: { ru: 'Легко', kz: 'Оңай', tone: 'text-[#00715c] bg-[#e7f4ec] dark:bg-[#c9f53e]/10 dark:text-[#c9f53e]' },
+  medium: { ru: 'Средне', kz: 'Орта', tone: 'text-[#8a5a00] bg-[#fff3d9] dark:bg-amber-300/10 dark:text-amber-200' },
+  hard: { ru: 'Сложно', kz: 'Қиын', tone: 'text-[#aa3934] bg-[#fce9e7] dark:bg-red-300/10 dark:text-red-200' },
 }
 
 export default function Podcasts() {
   const [podcasts, setPodcasts] = useState([])
   const [subjects, setSubjects] = useState([])
+  const [active, setActive] = useState(null)
+  const [subjectId, setSubjectId] = useState('all')
+  const [level, setLevel] = useState('all')
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
-  const [selectedPodcast, setSelectedPodcast] = useState(null)
-  const [filterDifficulty, setFilterDifficulty] = useState('all')
-  const [filterSubject, setFilterSubject] = useState('all')
   const { language } = useLanguageStore()
   const { theme } = useThemeStore()
-  const isDark = theme === 'dark'
+  const ru = language === 'ru'
+  const copy = ru ? { eyebrow: 'АУДИОТЕКА QAZMIND', title: 'Слушай. Понимай. Повторяй.', subtitle: 'Короткие разборы тем для подготовки — включайте в дороге, между занятиями или перед тестом.', all: 'Все предметы', search: 'Поиск по темам', filters: 'Фильтр', episodes: 'эпизодов', empty: 'По этим параметрам ничего не найдено.', reset: 'Сбросить фильтры', listen: 'Слушать', close: 'Скрыть плеер', minutes: 'мин', topic: 'Общая тема', queue: 'Ваша аудиотека', levels: { all: 'Любой уровень', easy: 'Легко', medium: 'Средне', hard: 'Сложно' }, loading: 'Загружаем аудиотеку…', player: 'Сейчас слушаете' } : { eyebrow: 'QAZMIND АУДИОТЕКАСЫ', title: 'Тыңда. Түсін. Қайтала.', subtitle: 'Дайындыққа арналған қысқа талдаулар — жолда, сабақ арасында немесе тест алдында тыңдаңыз.', all: 'Барлық пән', search: 'Тақырып бойынша іздеу', filters: 'Сүзгі', episodes: 'эпизод', empty: 'Бұл параметрлер бойынша ештеңе табылмады.', reset: 'Сүзгіні тазарту', listen: 'Тыңдау', close: 'Плеерді жабу', minutes: 'мин', topic: 'Жалпы тақырып', queue: 'Сіздің аудиотекаңыз', levels: { all: 'Кез келген деңгей', easy: 'Оңай', medium: 'Орташа', hard: 'Қиын' }, loading: 'Аудиотека жүктелуде…', player: 'Қазір тыңдалып жатыр' }
 
-  const t = {
-    kz: {
-      title: 'AI Подкастар',
-      subtitle: 'Тақырыптарды тыңдап, қысқа форматта қайтала.',
-      eyebrow: 'PODCASTS',
-      all: 'Барлығы',
-      easy: 'Оңай',
-      medium: 'Орта',
-      hard: 'Қиын',
-      minutes: 'мин',
-      loading: 'Подкастар жүктелуде...',
-      nopodcasts: 'Бұл сүзгілер бойынша подкастар табылмады',
-      listenNow: 'Тыңдау',
-      closePlayer: 'Жабу',
-      filterBySubject: 'Пән',
-      filterByDifficulty: 'Қиындық',
-      noDescription: 'Бұл эпизодқа сипаттама әлі қосылмаған.',
-      topicFallback: 'Жалпы тақырып',
-      results: 'эпизод',
-    },
-    ru: {
-      title: 'AI Подкасты',
-      subtitle: 'Слушай темы и повторяй материал в коротком аудио-формате.',
-      eyebrow: 'PODCASTS',
-      all: 'Все',
-      easy: 'Легко',
-      medium: 'Средне',
-      hard: 'Сложно',
-      minutes: 'мин',
-      loading: 'Подкасты загружаются...',
-      nopodcasts: 'По этим фильтрам подкасты не найдены',
-      listenNow: 'Слушать',
-      closePlayer: 'Закрыть',
-      filterBySubject: 'Предмет',
-      filterByDifficulty: 'Сложность',
-      noDescription: 'Для этого эпизода описание пока не добавлено.',
-      topicFallback: 'Общая тема',
-      results: 'эпизодов',
-    },
-  }
+  useEffect(() => { Promise.all([api.get('/podcasts/'), api.get('/subjects/')]).then(([podcastResponse, subjectResponse]) => { setPodcasts(podcastResponse.data); setSubjects(subjectResponse.data) }).catch((error) => console.error('Unable to load podcasts:', error)).finally(() => setLoading(false)) }, [])
+  const filtered = useMemo(() => podcasts.filter((podcast) => { const title = ru ? podcast.title_ru : podcast.title_kz; const description = ru ? podcast.description_ru : podcast.description_kz; const text = `${title || ''} ${description || ''} ${podcast.topic || ''}`.toLowerCase(); return (subjectId === 'all' || podcast.subject_id === Number(subjectId)) && (level === 'all' || podcast.difficulty === level) && text.includes(query.trim().toLowerCase()) }), [podcasts, subjectId, level, query, ru])
+  const reset = () => { setSubjectId('all'); setLevel('all'); setQuery('') }
+  const getSubject = (id) => subjects.find((subject) => subject.id === id)
+  const getMinutes = (seconds) => seconds ? Math.max(1, Math.ceil(seconds / 60)) : null
 
-  const content = t[language]
+  if (loading) return <div className={`flex min-h-[65vh] items-center justify-center ${theme === 'dark' ? 'bg-slate-950 text-white' : 'bg-[#f7faf7] text-[#003f34]'}`}><div className="text-center"><span className="mx-auto mb-4 block h-8 w-8 animate-spin border-2 border-current border-t-transparent" /><p className="text-sm font-semibold">{copy.loading}</p></div></div>
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    try {
-      const [podcastsRes, subjectsRes] = await Promise.all([api.get('/podcasts/'), api.get('/subjects/')])
-      setPodcasts(podcastsRes.data)
-      setSubjects(subjectsRes.data)
-    } catch (err) {
-      console.error('Failed to load data:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredPodcasts = useMemo(
-    () =>
-      podcasts.filter((podcast) => {
-        if (filterDifficulty !== 'all' && podcast.difficulty !== filterDifficulty) return false
-        if (filterSubject !== 'all' && podcast.subject_id !== parseInt(filterSubject, 10)) return false
-        return true
-      }),
-    [podcasts, filterDifficulty, filterSubject]
-  )
-
-  const sortedSubjects = useMemo(
-    () => [...subjects].sort((a, b) => getSubjectOrderIndex(a) - getSubjectOrderIndex(b)),
-    [subjects]
-  )
-
-  const getDifficultyLabel = (difficulty) => content[difficulty] || difficulty
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe,transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_46%,#ffffff_100%)] px-4 py-20 dark:bg-[radial-gradient(circle_at_top,#0f1b38,transparent_34%),linear-gradient(180deg,#020617_0%,#081226_46%,#020617_100%)]">
-        <div className="mx-auto flex min-h-[55vh] max-w-6xl items-center justify-center">
-          <div className="rounded-[28px] border border-slate-200/70 bg-white/90 px-8 py-10 text-center shadow-[0_24px_70px_rgba(59,130,246,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-cyan-500 via-violet-500 to-pink-500 text-white">
-              <PodcastIcon className="h-7 w-7">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.5a6.5 6.5 0 006.5-6.5M12 5.5A6.5 6.5 0 015 12m7 6.5V21m0-15.5V3m-3.5 5.5a3.5 3.5 0 000 7m7 0a3.5 3.5 0 000-7" />
-              </PodcastIcon>
-            </div>
-            <p className="text-lg font-semibold text-slate-600 dark:text-slate-200">{content.loading}</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={`min-h-screen pb-16 pt-8 ${
-      isDark
-        ? 'bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_18%),linear-gradient(180deg,#020617_0%,#081226_44%,#020617_100%)]'
-        : 'bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_44%,#ffffff_100%)]'
-    }`}>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <section className={`rounded-[32px] p-6 backdrop-blur-2xl sm:p-8 ${
-          isDark
-            ? 'border border-white/10 bg-slate-900/72 shadow-[0_24px_70px_rgba(0,0,0,0.28)]'
-            : 'border border-white/60 bg-white/85 shadow-[0_24px_70px_rgba(59,130,246,0.10)]'
-        }`}>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/8 px-4 py-2 text-xs font-black uppercase tracking-[0.32em] text-cyan-700 dark:border-cyan-300/20 dark:bg-cyan-400/10 dark:text-cyan-200">
-                <PodcastIcon className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.5a6.5 6.5 0 006.5-6.5M12 5.5A6.5 6.5 0 015 12m7 6.5V21m0-15.5V3" />
-                </PodcastIcon>
-                {content.eyebrow}
-              </div>
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl dark:text-white">{content.title}</h1>
-              <p className="mt-3 text-base leading-7 text-slate-600 dark:text-slate-300">{content.subtitle}</p>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-[24px] border border-slate-200/70 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
-              <PodcastIcon className="h-4 w-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h10M7 12h6m-6 5h10M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
-              </PodcastIcon>
-              <span>{filteredPodcasts.length} {content.results}</span>
-            </div>
-          </div>
-        </section>
-
-        <section className={`mt-6 rounded-[32px] p-5 backdrop-blur-xl ${
-          isDark
-            ? 'border border-white/10 bg-slate-900/72 shadow-[0_20px_60px_rgba(0,0,0,0.24)]'
-            : 'border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'
-        }`}>
-          <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
-            <aside className="space-y-5">
-              <div>
-                <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">{content.filterBySubject}</p>
-                <div className="grid gap-2">
-                  <button
-                    onClick={() => setFilterSubject('all')}
-                    className={`inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                      filterSubject === 'all'
-                        ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]'
-                    }`}
-                  >
-                    {content.all}
-                  </button>
-                  {sortedSubjects.map((subject) => (
-                    <button
-                      key={subject.id}
-                      onClick={() => setFilterSubject(subject.id.toString())}
-                      className={`inline-flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
-                        filterSubject === subject.id.toString()
-                          ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]'
-                      }`}
-                    >
-                      <SubjectGlyph subject={subject} />
-                      <span className="min-w-0 break-words">
-                        {language === 'kz' ? subject.name_kz : subject.name_ru}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">{content.filterByDifficulty}</p>
-                <div className="flex flex-wrap gap-2">
-                  {['all', 'easy', 'medium', 'hard'].map((difficulty) => (
-                    <button
-                      key={difficulty}
-                      onClick={() => setFilterDifficulty(difficulty)}
-                      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-                        filterDifficulty === difficulty
-                          ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]'
-                      }`}
-                    >
-                      {content[difficulty]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </aside>
-
-            <div>
-              {filteredPodcasts.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-slate-300/80 bg-slate-50/70 px-6 py-16 text-center dark:border-white/12 dark:bg-white/[0.03]">
-                  <p className="text-lg font-semibold text-slate-600 dark:text-slate-200">{content.nopodcasts}</p>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {filteredPodcasts.map((podcast) => {
-                    const title = language === 'kz' ? podcast.title_kz : podcast.title_ru
-                    const description = language === 'kz' ? podcast.description_kz : podcast.description_ru
-                    const isOpen = selectedPodcast?.id === podcast.id
-
-                    return (
-                      <article
-                        key={podcast.id}
-                        className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white/88 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-slate-900/72"
-                      >
-                        <div className="p-5 sm:p-6">
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-xl font-black leading-tight text-slate-950 dark:text-white">{title}</h3>
-                                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black uppercase ${difficultyTone[podcast.difficulty] || difficultyTone.medium}`}>
-                                  {getDifficultyLabel(podcast.difficulty)}
-                                </span>
-                              </div>
-
-                              <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                {description || content.noDescription}
-                              </p>
-
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200">
-                                  <PodcastIcon className="h-3.5 w-3.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                  </PodcastIcon>
-                                  {podcast.topic || content.topicFallback}
-                                </span>
-                                {podcast.duration_seconds ? (
-                                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200">
-                                    <PodcastIcon className="h-3.5 w-3.5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </PodcastIcon>
-                                    {Math.ceil(podcast.duration_seconds / 60)} {content.minutes}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-
-                            {!isOpen ? (
-                              <button
-                                onClick={() => setSelectedPodcast(podcast)}
-                                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-3 text-sm font-bold text-white transition hover:opacity-95 sm:min-w-[140px]"
-                              >
-                                {content.listenNow}
-                              </button>
-                            ) : null}
-                          </div>
-
-                          {isOpen ? (
-                            <div className="mt-5 space-y-4 border-t border-slate-200/70 pt-5 dark:border-white/10">
-                              <AudioPlayer podcast={podcast} audioUrl={`/api/podcasts/${podcast.id}/audio`} />
-                              <button
-                                onClick={() => setSelectedPodcast(null)}
-                                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1]"
-                              >
-                                <PodcastIcon className="h-4 w-4">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-                                </PodcastIcon>
-                                {content.closePlayer}
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  )
+  return <div className={theme === 'dark' ? 'min-h-screen bg-slate-950 text-white' : 'min-h-screen bg-[#f7faf7] text-[#003f34]'}>
+    <section className="overflow-hidden border-b border-[#dce5df] bg-[#003f34] text-white dark:border-white/10"><div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16"><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c9f53e]">{copy.eyebrow}</motion.p><motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }} className="mt-4 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end"><div><h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.06em] sm:text-6xl">{copy.title}</h1><p className="mt-5 max-w-2xl text-base leading-7 text-white/68">{copy.subtitle}</p></div><motion.div initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: .18 }} className="relative border border-white/15 bg-white/[.06] p-5"><div className="absolute right-0 top-0 h-16 w-16 bg-[#c9f53e] opacity-90" /><p className="relative text-[10px] font-bold uppercase tracking-[.18em] text-[#c9f53e]">{copy.player}</p><div className="relative mt-5 flex items-end gap-1.5" aria-hidden="true">{[15,28,20,42,32,54,25,38,18,46,30,55,22,36].map((height, index) => <motion.i key={index} animate={{ height: [height, Math.max(12, height - 14), height] }} transition={{ duration: 1.4, delay: index * .05, repeat: Infinity }} className="block w-2 bg-[#c9f53e]" style={{ height }} />)}</div><div className="relative mt-5 flex items-end justify-between"><div><p className="text-3xl font-semibold tracking-[-.06em]">{podcasts.length}</p><p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-white/55">{copy.episodes}</p></div><span className="text-xs text-white/60">01:00</span></div></motion.div></motion.div></div></section>
+    <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10"><div className="grid gap-8 lg:grid-cols-[248px_minmax(0,1fr)]">
+      <aside className="lg:sticky lg:top-24 lg:h-fit"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7b8480] dark:text-white/45">{copy.filters}</p><label className="relative mt-4 block"><Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b8480]"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></Icon><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.search} className="w-full border border-[#b8c9c0] bg-transparent py-3 pl-10 pr-3 text-sm outline-none transition placeholder:text-[#9aa49f] focus:border-[#003f34] dark:border-white/20 dark:focus:border-[#c9f53e]" /></label><div className="mt-7"><p className="mb-3 text-xs font-semibold">{ru ? 'Предмет' : 'Пән'}</p><div className="flex flex-wrap gap-2"><button onClick={() => setSubjectId('all')} className={`px-3 py-2 text-xs font-bold transition ${subjectId === 'all' ? 'bg-[#003f34] text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'border border-[#dce5df] hover:border-[#003f34] dark:border-white/15 dark:hover:border-[#c9f53e]'}`}>{copy.all}</button>{subjects.map((subject) => <button key={subject.id} onClick={() => setSubjectId(String(subject.id))} title={ru ? subject.name_ru : subject.name_kz} className={`flex h-9 w-9 items-center justify-center transition ${subjectId === String(subject.id) ? 'bg-[#c9f53e] text-[#003f34]' : 'border border-[#dce5df] text-[#00715c] hover:border-[#003f34] dark:border-white/15 dark:text-[#c9f53e] dark:hover:border-[#c9f53e]'}`}><SubjectIcon name={subject.name_ru} className="h-4 w-4" /></button>)}</div></div><div className="mt-7"><p className="mb-3 text-xs font-semibold">{ru ? 'Уровень' : 'Деңгей'}</p><div className="flex flex-col gap-1">{['all', 'easy', 'medium', 'hard'].map((item) => <button key={item} onClick={() => setLevel(item)} className={`flex items-center justify-between border-b border-[#dce5df] py-3 text-left text-sm transition dark:border-white/10 ${level === item ? 'font-bold text-[#00715c] dark:text-[#c9f53e]' : 'text-[#5d6763] dark:text-white/65'}`}><span>{copy.levels[item]}</span>{level === item && <span>—</span>}</button>)}</div></div></aside>
+      <section><div className="flex items-end justify-between border-b border-[#b8c9c0] pb-4 dark:border-white/20"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7b8480] dark:text-white/45">{copy.queue}</p><h2 className="mt-1 text-2xl font-semibold tracking-[-0.05em]">{filtered.length} {copy.episodes}</h2></div>{(query || subjectId !== 'all' || level !== 'all') && <button onClick={reset} className="text-xs font-bold text-[#00715c] underline underline-offset-4 dark:text-[#c9f53e]">{copy.reset}</button>}</div>{filtered.length ? <div className="divide-y divide-[#dce5df] dark:divide-white/10">{filtered.map((podcast, index) => { const isActive = active?.id === podcast.id; const subject = getSubject(podcast.subject_id); const title = ru ? podcast.title_ru : podcast.title_kz; const description = ru ? podcast.description_ru : podcast.description_kz; const meta = difficulty[podcast.difficulty] || difficulty.medium; return <motion.article key={podcast.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.03, 0.2) }} className="py-6 sm:py-7"><div className="flex gap-4 sm:gap-6"><button onClick={() => setActive(isActive ? null : podcast)} className={`flex h-12 w-12 shrink-0 items-center justify-center transition ${isActive ? 'bg-[#c9f53e] text-[#003f34]' : 'bg-[#003f34] text-white dark:bg-white dark:text-[#003f34]'}`} aria-label={copy.listen}>{isActive ? <Icon className="h-5 w-5"><path d="M7 7h10v10H7z" /></Icon> : <Icon className="ml-0.5 h-5 w-5" fill="currentColor"><path stroke="none" d="m8 5 11 7-11 7V5Z" /></Icon>}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${meta.tone}`}>{meta[ru ? 'ru' : 'kz']}</span>{subject && <span className="inline-flex items-center gap-1.5 text-xs text-[#7b8480] dark:text-white/45"><SubjectIcon name={subject.name_ru} className="h-3.5 w-3.5" />{ru ? subject.name_ru : subject.name_kz}</span>}{getMinutes(podcast.duration_seconds) && <span className="text-xs text-[#7b8480] dark:text-white/45">· {getMinutes(podcast.duration_seconds)} {copy.minutes}</span>}</div><h3 className="mt-3 text-xl font-semibold leading-tight tracking-[-0.035em] sm:text-2xl">{title}</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-[#5d6763] dark:text-white/60">{description || copy.topic}</p>{isActive && <div className="mt-5 border-t border-[#dce5df] pt-5 dark:border-white/10"><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b8480] dark:text-white/45">{copy.player}</p><AudioPlayer podcast={podcast} audioUrl={`/api/podcasts/${podcast.id}/audio`} /><button onClick={() => setActive(null)} className="mt-3 text-xs font-bold text-[#00715c] dark:text-[#c9f53e]">{copy.close}</button></div>}</div></div></motion.article> })}</div> : <div className="py-20 text-center"><p className="text-lg font-semibold">{copy.empty}</p><button onClick={reset} className="mt-4 bg-[#003f34] px-4 py-3 text-sm font-bold text-white dark:bg-[#c9f53e] dark:text-[#003f34]">{copy.reset}</button></div>}</section>
+    </div></div>
+  </div>
 }

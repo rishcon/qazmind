@@ -23,7 +23,10 @@ router = APIRouter(prefix="/api/tutor", tags=["tutor"])
 def _collect_topic_facts(db: Session, subject_id: int, topic: str, language: str) -> str:
     query = db.query(Question).filter(Question.subject_id == subject_id)
     if topic:
-        query = query.filter(func.lower(Question.topic) == topic.lower())
+        # SQLite lower() is ASCII-only and breaks matching for Kazakh/Cyrillic
+        # topics. The topic list is returned from this same column, so an exact
+        # trimmed comparison is both reliable and sufficient.
+        query = query.filter(func.trim(Question.topic) == topic.strip())
 
     rows = query.limit(12).all()
     if not rows:
@@ -33,6 +36,10 @@ def _collect_topic_facts(db: Session, subject_id: int, topic: str, language: str
     for question in rows:
         question_text = question.text_kz if language == "kz" else question.text_ru
         fact = question.fact_snippet_kz if language == "kz" else question.fact_snippet_ru
+        # Imported content can contain a source snippet in only one language.
+        # It is still a valid source for the lesson, so use the available one.
+        if not fact:
+            fact = question.fact_snippet_ru if language == "kz" else question.fact_snippet_kz
         if not fact:
             continue
         chunks.append(f"- {question_text}\n  {fact}")
@@ -111,10 +118,18 @@ async def get_subject_topics(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
+    # Do not offer topics that cannot start a grounded AI lesson.  A topic is
+    # available when at least one of its questions has a source snippet.
     topics = [
         row[0]
         for row in db.query(Question.topic)
-        .filter(Question.subject_id == subject_id, Question.topic.isnot(None), Question.topic != "")
+        .filter(
+            Question.subject_id == subject_id,
+            Question.topic.isnot(None),
+            func.trim(Question.topic) != "",
+            (Question.fact_snippet_kz.isnot(None) & (func.trim(Question.fact_snippet_kz) != ""))
+            | (Question.fact_snippet_ru.isnot(None) & (func.trim(Question.fact_snippet_ru) != "")),
+        )
         .distinct()
         .order_by(Question.topic.asc())
         .all()

@@ -27,6 +27,23 @@ DEFAULT_SUBJECTS = [
 def ensure_schema_compatibility(db: Session) -> None:
     inspector = inspect(db.bind)
 
+    # Older databases predate the learner profile fields.  create_all only
+    # creates missing tables, so existing SQLite files need these additive
+    # migrations before the User model can be queried.
+    if "users" in inspector.get_table_names():
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        user_migrations = [
+            ("selected_subjects", "ALTER TABLE users ADD COLUMN selected_subjects JSON DEFAULT '[]'"),
+            ("ent_date", "ALTER TABLE users ADD COLUMN ent_date DATETIME"),
+            ("daily_goal_minutes", "ALTER TABLE users ADD COLUMN daily_goal_minutes INTEGER DEFAULT 30"),
+            ("profile_completed", "ALTER TABLE users ADD COLUMN profile_completed BOOLEAN DEFAULT FALSE"),
+        ]
+
+        for column_name, ddl in user_migrations:
+            if column_name not in user_columns:
+                db.execute(text(ddl))
+                db.commit()
+
     # Legacy SQLite databases may miss newer columns.
     if "questions" in inspector.get_table_names():
         question_columns = {column["name"] for column in inspector.get_columns("questions")}

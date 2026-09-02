@@ -67,8 +67,11 @@ export default function Navbar() {
 
   const isAdmin = user?.role === 'admin'
   const isLanding = location.pathname === '/'
-  // Login/Register are styled after the landing page, so they reuse its header too.
-  const useLandingNav = isLanding || location.pathname === '/login' || location.pathname === '/register'
+  const isTestRoute = location.pathname.startsWith('/test/')
+  const isCabinetRoute = !['/', '/login', '/register', '/privacy', '/terms'].includes(location.pathname)
+  // Only marketing and auth routes use the landing navigation. The cabinet is
+  // a separate product workspace with its own navigation.
+  const useLandingNav = !isCabinetRoute
   const isDark = theme === 'dark'
 
   const t = {
@@ -120,7 +123,54 @@ export default function Navbar() {
   const handleLogout = () => {
     setIsMobileMenuOpen(false)
     logout()
-    navigate('/')
+    navigate('/login')
+  }
+
+  if (isTestRoute) {
+    return (
+      <nav className="sticky top-0 z-50 border-b border-[#dce5df] bg-[#f7faf7]/95 text-[#003f34] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white">
+        <div className="mx-auto flex min-h-[64px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+          <span className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center bg-[#003f34] text-[#c9f53e] dark:bg-[#c9f53e] dark:text-[#003f34]"><svg className="h-4 w-4" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 3 35 12v20l-8 5-7-5 8-5v-11l-8-5-8 5v12l9 6-7 5L5 34V12L20 3Z" fill="currentColor" /></svg></span><strong className="text-sm tracking-[-0.03em]">QazMind · {language === 'kz' ? 'Тест режимі' : 'Режим тестирования'}</strong></span>
+          <button onClick={() => window.dispatchEvent(new Event('qazmind:request-test-exit'))} className="text-xs font-bold text-[#aa3934]">{language === 'kz' ? 'Шығу' : 'Выйти'}</button>
+        </div>
+      </nav>
+    )
+  }
+
+  if (isCabinetRoute) {
+    const cabinetLinks = [
+      { to: '/dashboard', label: language === 'kz' ? 'Кабинет' : 'Кабинет' },
+      { to: '/tutor', label: language === 'kz' ? 'AI-репетитор' : 'AI-репетитор' },
+      { to: '/podcasts', label: language === 'kz' ? 'Подкасттар' : 'Подкасты' },
+      { to: '/flashcards', label: language === 'kz' ? 'Карточкалар' : 'Карточки' },
+    ]
+
+    return (
+      <nav className="sticky top-0 z-50 border-b border-[#dce5df] bg-[#f7faf7]/95 text-[#003f34] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white">
+        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
+          <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5" aria-label="QazMind — личный кабинет">
+            <span className="flex h-9 w-9 items-center justify-center bg-[#003f34] text-[#c9f53e] dark:bg-[#c9f53e] dark:text-[#003f34]"><svg className="h-5 w-5" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 3 35 12v20l-8 5-7-5 8-5v-11l-8-5-8 5v12l9 6-7 5L5 34V12L20 3Z" fill="currentColor" /></svg></span>
+            <span className="hidden sm:block"><strong className="block text-base font-semibold tracking-[-0.045em]">QazMind</strong><small className="block text-[9px] font-bold uppercase tracking-[0.16em] text-[#78847e] dark:text-white/45">{language === 'kz' ? 'Жеке кабинет' : 'Личный кабинет'}</small></span>
+          </Link>
+
+          <div className="hidden items-center gap-1 lg:flex">
+            {cabinetLinks.map((item) => <Link key={item.to} to={item.to} className={`px-4 py-2 text-xs font-bold transition ${location.pathname === item.to ? 'bg-[#003f34] text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'text-[#5d6763] hover:text-[#003f34] dark:text-white/65 dark:hover:text-white'}`}>{item.label}</Link>)}
+            {isAdmin && <Link to="/admin" className="ml-2 border border-[#b8c9c0] px-3 py-2 text-xs font-bold text-[#00715c] transition hover:bg-[#eef5f0] dark:border-white/20 dark:text-[#c9f53e] dark:hover:bg-white/10">{language === 'kz' ? 'Әкімші' : 'Админ'}</Link>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-1 border border-[#dce5df] p-1 dark:border-white/15 sm:flex">
+              <button onClick={() => setLanguage('ru')} className={`px-2 py-1 text-[10px] font-bold ${language === 'ru' ? 'bg-[#003f34] text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'text-[#78847e] dark:text-white/50'}`}>RU</button>
+              <button onClick={() => setLanguage('kz')} className={`px-2 py-1 text-[10px] font-bold ${language === 'kz' ? 'bg-[#003f34] text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'text-[#78847e] dark:text-white/50'}`}>KZ</button>
+            </div>
+            <button onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center border border-[#dce5df] text-[#00715c] transition hover:bg-[#eef5f0] dark:border-white/15 dark:text-[#c9f53e] dark:hover:bg-white/10" title={t[language].theme}><NavIcon className="h-4 w-4">{theme === 'light' ? <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3c0 .58.05 1.15.15 1.7A7 7 0 0021 12.79z" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1.5M12 19.5V21M4.5 12H3m18 0h-1.5M18.364 5.636l-1.06 1.06M6.696 17.304l-1.06 1.06m12.728 0l-1.06-1.06M6.696 6.696l-1.06-1.06M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />}</NavIcon></button>
+            <button onClick={handleLogout} className="hidden min-h-9 items-center gap-2 bg-[#003f34] px-3 text-xs font-bold text-white transition hover:bg-[#005345] dark:bg-[#c9f53e] dark:text-[#003f34] sm:inline-flex"><span className="max-w-32 truncate">{user?.email || (language === 'kz' ? 'Шығу' : 'Выйти')}</span><NavIcon className="h-3.5 w-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 12h8m0 0-3-3m3 3-3 3M12 5v-.75A2.25 2.25 0 009.75 2h-3A2.25 2.25 0 004.5 4.25v15.5A2.25 2.25 0 006.75 22h3A2.25 2.25 0 0012 19.75V19" /></NavIcon></button>
+            <button type="button" onClick={() => setIsMobileMenuOpen((value) => !value)} className="flex h-9 w-9 items-center justify-center border border-[#dce5df] text-[#00715c] dark:border-white/15 dark:text-[#c9f53e] lg:hidden" aria-expanded={isMobileMenuOpen} aria-label="Меню"><NavIcon className="h-4 w-4">{isMobileMenuOpen ? <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /> : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}</NavIcon></button>
+          </div>
+        </div>
+        {isMobileMenuOpen && <div className="border-t border-[#dce5df] bg-[#f7faf7] px-5 py-3 dark:border-white/10 dark:bg-slate-950 lg:hidden"><div className="mx-auto flex max-w-7xl flex-col gap-1">{cabinetLinks.map((item) => <Link key={item.to} to={item.to} className="px-3 py-3 text-sm font-semibold hover:bg-[#eef5f0] dark:hover:bg-white/10">{item.label}</Link>)}<button onClick={handleLogout} className="px-3 py-3 text-left text-sm font-semibold text-[#b43c35] dark:text-red-300">{language === 'kz' ? 'Шығу' : 'Выйти'}</button></div></div>}
+      </nav>
+    )
   }
 
   if (useLandingNav) {
@@ -183,7 +233,7 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-20 items-center justify-between gap-3 py-2.5 sm:py-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <Link to={isAuthenticated ? '/dashboard' : '/'} className="flex min-w-0 items-center gap-2.5 sm:gap-3">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border sm:h-11 sm:w-11 ${
                 isDark ? 'border-white/10 bg-white/[0.08]' : 'border-slate-200 bg-white'
               }`}>

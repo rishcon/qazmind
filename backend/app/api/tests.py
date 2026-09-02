@@ -251,6 +251,31 @@ async def submit_test(
     )
 
 
+@router.post("/{attempt_id}/abandon", response_model=TestResult)
+async def abandon_test(
+    attempt_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_optional)
+):
+    """Finish an abandoned attempt with a zero score and no retained answers."""
+    test_attempt = db.query(TestAttempt).filter(TestAttempt.id == attempt_id).first()
+    if not test_attempt:
+        raise HTTPException(status_code=404, detail="Test attempt not found")
+
+    _ensure_attempt_access(test_attempt, current_user)
+    test_attempt.answers = {}
+    test_attempt.score = 0
+    db.commit()
+
+    return TestResult(
+        attempt_id=attempt_id,
+        score=0,
+        total=test_attempt.total,
+        wrong_questions=[],
+        subject_id=test_attempt.subject_id,
+    )
+
+
 @router.get("/{attempt_id}/result", response_model=TestResult)
 async def get_test_result(
     attempt_id: int,

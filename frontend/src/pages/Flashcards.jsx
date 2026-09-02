@@ -1,500 +1,63 @@
-import { useState, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { useLanguageStore } from '../store/languageStore';
-import { useAuthStore } from '../store/authStore';
-import api from '../utils/api';
-import { playSound, vibrate } from '../utils/sounds';
+import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useLanguageStore } from '../store/languageStore'
+import { useThemeStore } from '../store/themeStore'
+import SubjectIcon from '../components/SubjectIcon'
+import api from '../utils/api'
+import { playSound, vibrate } from '../utils/sounds'
+
+function Icon({ children, className = 'h-5 w-5' }) { return <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">{children}</svg> }
 
 export default function Flashcards() {
-  const { language } = useLanguageStore();
-  const { token } = useAuthStore();
-  const [subjects, setSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [cards, setCards] = useState([]);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ today: 0, total: 0, mastered: 0 });
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successType, setSuccessType] = useState(''); // 'know' or 'learning'
-  const [filterType, setFilterType] = useState('all'); // all, new, learning, review, mastered
-  const [sessionStartTime, setSessionStartTime] = useState(null);
-  const [sessionTime, setSessionTime] = useState(0);
-  const [cardsReviewed, setCardsReviewed] = useState(0);
-
-  const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-25, 25]);
-  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
-
-  // Таймер сессии
-  useEffect(() => {
-    if (!sessionStartTime) return;
-    
-    const interval = setInterval(() => {
-      setSessionTime(Math.floor((Date.now() - sessionStartTime) / 1000));
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [sessionStartTime]);
+  const { language } = useLanguageStore()
+  const { theme } = useThemeStore()
+  const [subjects, setSubjects] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [cards, setCards] = useState([])
+  const [position, setPosition] = useState(0)
+  const [flipped, setFlipped] = useState(false)
+  const [filter, setFilter] = useState('all')
+  const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({ today: 0, total: 0, mastered: 0 })
+  const [reviewed, setReviewed] = useState(0)
+  const ru = language === 'ru'
+  const c = ru ? { eyebrow: 'УМНОЕ ПОВТОРЕНИЕ', title: 'Флеш‑карточки', subtitle: 'Повторяйте короткими сессиями — алгоритм вернёт материал в нужный момент.', choose: 'Выберите предмет', hint: 'Начните короткую сессию повторения', today: 'сегодня', total: 'всего', mastered: 'освоено', cards: 'карточек', all: 'Все', new: 'Новые', learning: 'В изучении', review: 'Повторение', load: 'Загружаем карточки…', done: 'Сессия завершена', doneText: 'Все карточки из этой подборки просмотрены.', back: 'К предметам', flip: 'Нажмите, чтобы увидеть ответ', learn: 'Учить', know: 'Знаю', progress: 'Прогресс', no: 'Карточек пока нет' } : { eyebrow: 'АҚЫЛДЫ ҚАЙТАЛАУ', title: 'Флеш‑карталар', subtitle: 'Қысқа сессиялармен қайталаңыз — алгоритм материалды керек сәтте қайта ұсынады.', choose: 'Пәнді таңдаңыз', hint: 'Қысқа қайталау сессиясын бастаңыз', today: 'бүгін', total: 'барлығы', mastered: 'меңгерілді', cards: 'карточка', all: 'Барлығы', new: 'Жаңа', learning: 'Оқуда', review: 'Қайталау', load: 'Карточкалар жүктелуде…', done: 'Сессия аяқталды', doneText: 'Осы жинақтағы барлық карточка қаралды.', back: 'Пәндерге', flip: 'Жауапты көру үшін басыңыз', learn: 'Үйренемін', know: 'Білемін', progress: 'Прогресс', no: 'Карточкалар әзір жоқ' }
+  const shell = theme === 'dark' ? 'min-h-screen bg-slate-950 text-white' : 'min-h-screen bg-[#f7faf7] text-[#003f34]'
+  const card = cards[position]
 
   useEffect(() => {
-    loadSubjects();
-    loadStats();
-  }, []);
-
-  const loadSubjects = async () => {
+    api.get('/flashcards/subjects').then((r) => setSubjects(r.data)).catch((e) => console.error(e))
+    api.get('/flashcards/stats').then((r) => setStats(r.data)).catch((e) => console.error(e))
+  }, [])
+  const start = async (subject, nextFilter = filter) => {
+    setLoading(true); setSelected(subject)
+    try { const r = await api.get('/flashcards/due/' + subject.id, { params: { language, filter_type: nextFilter } }); setCards(r.data); setPosition(0); setReviewed(0); setFlipped(false) }
+    catch (e) { console.error(e); setCards([]) } finally { setLoading(false) }
+  }
+  const changeFilter = (value) => { setFilter(value); if (selected) start(selected, value) }
+  const reviewCard = async (known) => {
+    if (!card || !flipped) return
     try {
-      const response = await api.get('/flashcards/subjects');
-      setSubjects(response.data);
-    } catch (error) {
-      console.error('Error loading subjects:', error);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const response = await api.get('/flashcards/stats');
-      setStats(response.data);
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  };
-
-  const loadCards = async (subjectId, filter = 'all') => {
-    setLoading(true);
-    try {
-      const response = await api.get(`/flashcards/due/${subjectId}`, {
-        params: { language, filter_type: filter }
-      });
-      setCards(response.data);
-      setCurrentCardIndex(0);
-      setIsFlipped(false);
-      setSessionStartTime(Date.now());
-      setSessionTime(0);
-      setCardsReviewed(0);
-    } catch (error) {
-      console.error('Error loading cards:', error);
-      setCards([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubjectSelect = (subject) => {
-    setSelectedSubject(subject);
-    loadCards(subject.id, filterType);
-  };
-
-  const handleFilterChange = (newFilter) => {
-    setFilterType(newFilter);
-    if (selectedSubject) {
-      loadCards(selectedSubject.id, newFilter);
-    }
-  };
-
-  const handleCardFlip = () => {
-    setIsFlipped(!isFlipped);
-    playSound('flip');
-  };
-
-  const handleSwipe = async (direction) => {
-    if (!cards[currentCardIndex] || isFlipped === false) return;
-
-    const card = cards[currentCardIndex];
-    const isKnown = direction === 'right';
-
-    try {
-      await api.post('/flashcards/review', {
-        card_id: card.id,
-        quality: isKnown ? 4 : 1 // SuperMemo-2: 4 = easy, 1 = hard
-      });
-
-      // Show success animation
-      setSuccessType(isKnown ? 'know' : 'learning');
-      setShowSuccess(true);
-      
-      // Play sound and vibrate
-      playSound(isKnown ? 'success' : 'learning');
-      vibrate(isKnown ? [100, 50, 100] : [100]);
-      
-      setTimeout(() => setShowSuccess(false), 800);
-
-      // Увеличиваем счетчик
-      setCardsReviewed(cardsReviewed + 1);
-
-      // Move to next card
-      if (currentCardIndex < cards.length - 1) {
-        setCurrentCardIndex(currentCardIndex + 1);
-        setIsFlipped(false);
-      } else {
-        // All cards completed
-        setCards([]);
-        loadStats();
-      }
-    } catch (error) {
-      console.error('Error reviewing card:', error);
-    }
-  };
-
-  const handleDragEnd = (event, info) => {
-    if (Math.abs(info.offset.x) > 100) {
-      const direction = info.offset.x > 0 ? 'right' : 'left';
-      handleSwipe(direction);
-    }
-  };
-
-  const currentCard = cards[currentCardIndex];
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!selectedSubject) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Header */}
-          <div className="text-center mb-12 animate-fade-in">
-            <div className="inline-block mb-4 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-full shadow-lg">
-              🧠 {language === 'kz' ? 'Ақылды қайталау' : 'Умное повторение'}
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              {language === 'kz' ? 'Флеш-карточкалар' : 'Флеш-карточки'}
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              {language === 'kz'
-                ? 'Spaced Repetition әдісімен материалды тез және тиімді есте сақтаңыз'
-                : 'Запоминайте материал быстро и эффективно с методом Spaced Repetition'}
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto mb-12">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border-2 border-indigo-200 dark:border-indigo-800 text-center">
-              <div className="text-4xl font-black text-indigo-600 dark:text-indigo-400 mb-2">{stats.today}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                {language === 'kz' ? 'Бүгін' : 'Сегодня'}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border-2 border-purple-200 dark:border-purple-800 text-center">
-              <div className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-2">{stats.total}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                {language === 'kz' ? 'Барлығы' : 'Всего'}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border-2 border-green-200 dark:border-green-800 text-center">
-              <div className="text-4xl font-black text-green-600 dark:text-green-400 mb-2">{stats.mastered}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                {language === 'kz' ? 'Меңгерілген' : 'Освоено'}
-              </div>
-            </div>
-          </div>
-
-          {/* Subject selection */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {subjects.map((subject, index) => (
-              <motion.button
-                key={subject.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => handleSubjectSelect(subject)}
-                className="group relative bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-lg border-2 border-gray-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all hover:shadow-2xl hover:-translate-y-2"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
-                <div className="relative">
-                  <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
-                    {subject.icon || '📚'}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                    {language === 'kz' ? subject.name_kz : subject.name_ru}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {subject.flashcards_count || 0} {language === 'kz' ? 'карточка' : 'карточек'}
-                  </p>
-                </div>
-              </motion.button>
-            ))}
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-16 max-w-4xl mx-auto">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-3xl p-8 border-2 border-blue-200 dark:border-blue-800">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                <span>💡</span>
-                {language === 'kz' ? 'Қалай жұмыс істейді?' : 'Как это работает?'}
-              </h3>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                    👉
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-2">
-                      {language === 'kz' ? 'Білемін' : 'Знаю'}
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {language === 'kz'
-                        ? 'Оңға свайп - карточка 3 күннен кейін көрсетіледі'
-                        : 'Свайп вправо - карточка появится через 3 дня'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                    👈
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-2">
-                      {language === 'kz' ? 'Үйренуде' : 'Учу'}
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {language === 'kz'
-                        ? 'Солға свайп - карточка 10 минуттан кейін көрсетіледі'
-                        : 'Свайп влево - карточка появится через 10 минут'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+      await api.post('/flashcards/review', { card_id: card.id, quality: known ? 4 : 1 })
+      playSound(known ? 'success' : 'learning'); vibrate(known ? [100, 50, 100] : [100]); setReviewed((v) => v + 1)
+      if (position < cards.length - 1) { setPosition((v) => v + 1); setFlipped(false) } else { setCards([]); api.get('/flashcards/stats').then((r) => setStats(r.data)) }
+    } catch (e) { console.error(e) }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 border-4 border-purple-200 dark:border-purple-800 border-t-purple-600 dark:border-t-purple-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-gray-600 dark:text-gray-400">
-            {language === 'kz' ? 'Карточкалар жүктелуде...' : 'Загрузка карточек...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (!selected) return <div className={shell}>
+    <section className="overflow-hidden border-b border-[#dce5df] bg-[#003f34] text-white dark:border-white/10"><div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end"><div><p className="text-[10px] font-bold uppercase tracking-[.24em] text-[#c9f53e]">{c.eyebrow}</p><h1 className="mt-4 text-4xl font-semibold tracking-[-.06em] sm:text-6xl">{c.title}</h1><p className="mt-4 max-w-2xl text-base leading-7 text-white/65">{c.subtitle}</p></div><motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative min-h-44 border border-white/15 bg-white/[.06] p-5"><div className="absolute -right-5 -top-5 h-24 w-24 border border-[#c9f53e]/60" /><p className="relative text-[10px] font-bold uppercase tracking-[.18em] text-[#c9f53e]">{c.progress}</p><div className="relative mt-6 flex items-end gap-2">{["bg-white/25", "bg-white/45", "bg-[#c9f53e]"].map((tone, index) => <motion.span key={tone} initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: .15 + index * .12 }} className={`block w-9 origin-bottom ${tone}`} style={{ height: `${48 + index * 28}px` }} />)}</div><p className="relative mt-4 text-sm text-white/65">{stats.today} {c.cards} {c.today}</p></motion.div></div></section>
+    <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10"><div className="grid grid-cols-3 border-y border-[#dce5df] dark:border-white/10">{[[stats.today,c.today],[stats.total,c.total],[stats.mastered,c.mastered]].map(([value,label], i) => <div key={label} className={i ? 'border-l border-[#dce5df] py-5 pl-5 dark:border-white/10' : 'py-5'}><strong className="block text-3xl tracking-[-.05em]">{value}</strong><span className="text-xs text-[#7b8480] dark:text-white/50">{label}</span></div>)}</div>
+    <div className="mt-10 flex items-end justify-between border-b border-[#b8c9c0] pb-4 dark:border-white/20"><h2 className="text-2xl font-semibold tracking-[-.05em]">{c.choose}</h2><p className="hidden text-sm text-[#5d6763] sm:block dark:text-white/55">{c.hint}</p></div>
+    <div className="divide-y divide-[#dce5df] dark:divide-white/10">{subjects.map((subject, i) => <motion.button key={subject.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * .03, .2) }} onClick={() => start(subject)} className="group flex w-full items-center gap-4 py-5 text-left transition hover:px-3 hover:bg-[#eef5f0] dark:hover:bg-white/[.04]"><span className="flex h-11 w-11 items-center justify-center bg-[#eef5f0] text-[#00715c] dark:bg-white/10 dark:text-[#c9f53e]"><SubjectIcon name={subject.name_ru} /></span><span className="min-w-0 flex-1"><strong className="block text-base font-semibold">{ru ? subject.name_ru : subject.name_kz}</strong><small className="mt-1 block text-xs text-[#7b8480] dark:text-white/45">{subject.flashcards_count || 0} {c.cards}</small></span><Icon className="h-5 w-5 text-[#7b8480] group-hover:translate-x-1"><path d="M5 12h14m-6-6 6 6-6 6" /></Icon></motion.button>)}</div></div></div>
 
-  if (!currentCard) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="text-center animate-scale-in">
-          <div className="text-8xl mb-6">🎉</div>
-          <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">
-            {language === 'kz' ? 'Керемет!' : 'Отлично!'}
-          </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-            {language === 'kz'
-              ? 'Барлық карточкаларды қарадыңыз!'
-              : 'Вы просмотрели все карточки!'}
-          </p>
-          <button
-            onClick={() => setSelectedSubject(null)}
-            className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105"
-          >
-            {language === 'kz' ? 'Басты бетке' : 'На главную'}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className={shell + ' flex min-h-[65vh] items-center justify-center'}><div className="text-center"><span className="mx-auto mb-4 block h-8 w-8 animate-spin border-2 border-current border-t-transparent" /><p className="text-sm font-semibold">{c.load}</p></div></div>
+  if (!card) return <div className={shell + ' flex min-h-[65vh] items-center justify-center px-5'}><div className="max-w-md text-center"><p className="text-[10px] font-bold uppercase tracking-[.22em] text-[#7b8480] dark:text-white/45">{c.eyebrow}</p><h1 className="mt-3 text-4xl font-semibold tracking-[-.06em]">{cards.length === 0 && reviewed === 0 ? c.no : c.done}</h1><p className="mt-4 text-[#5d6763] dark:text-white/60">{c.doneText}</p><button onClick={() => setSelected(null)} className="mt-7 bg-[#003f34] px-5 py-3 text-sm font-bold text-white dark:bg-[#c9f53e] dark:text-[#003f34]">{c.back}</button></div></div>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12 relative overflow-hidden">
-      {/* Background decorations */}
-      <div className="absolute top-20 right-10 w-72 h-72 bg-purple-200/20 dark:bg-purple-500/5 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-blue-200/20 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
-
-      {/* Success overlay */}
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
-          >
-            <div className={`text-9xl ${successType === 'know' ? 'rotate-12' : '-rotate-12'}`}>
-              {successType === 'know' ? '✅' : '📚'}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="max-w-2xl mx-auto px-4 relative z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => setSelectedSubject(null)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="font-semibold">{language === 'kz' ? 'Артқа' : 'Назад'}</span>
-          </button>
-
-          <div className="flex items-center gap-4">
-            {/* Time and progress */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow-lg">
-              <span className="text-sm text-gray-600 dark:text-gray-400">⏱️ {formatTime(sessionTime)}</span>
-              <span className="text-sm text-gray-400">•</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {currentCardIndex + 1} / {cards.length}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="mb-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {language === 'kz' ? 'Прогресс' : 'Прогресс'}: {cardsReviewed}/{cards.length}
-            </span>
-            <span className="text-xs text-gray-500">
-              {Math.round((cardsReviewed / Math.max(cards.length, 1)) * 100)}%
-            </span>
-          </div>
-          <div className="w-full h-3 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${(cardsReviewed / Math.max(cards.length, 1)) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-        </div>
-
-        {/* Filter buttons - show only when session started */}
-        {cards.length > 0 && currentCardIndex === 0 && cardsReviewed === 0 && (
-          <div className="mb-6 flex flex-wrap gap-2 justify-center">
-            {[
-              { id: 'all', label: language === 'kz' ? 'Барлығы' : 'Все' },
-              { id: 'new', label: language === 'kz' ? '🆕 Жаңа' : '🆕 Новые' },
-              { id: 'learning', label: language === 'kz' ? '📚 Оқу' : '📚 Обучение' },
-              { id: 'review', label: language === 'kz' ? '🔄 Қайталау' : '🔄 Повтор' },
-            ].map(filter => (
-              <button
-                key={filter.id}
-                onClick={() => handleFilterChange(filter.id)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filterType === filter.id
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105'
-                    : 'bg-white/60 dark:bg-slate-800/60 text-gray-700 dark:text-gray-300 hover:bg-white/80'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Card */}
-        <div className="relative h-screen md:h-[500px] max-md:min-h-[500px] flex items-center justify-center">
-          <motion.div
-            style={{ x, rotate, opacity }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            onDragEnd={handleDragEnd}
-            onClick={handleCardFlip}
-            className="absolute cursor-grab active:cursor-grabbing"
-          >
-            <motion.div
-              animate={{ rotateY: isFlipped ? 180 : 0 }}
-              transition={{ duration: 0.6, type: 'spring' }}
-              className="w-[90vw] md:w-[400px] h-[60vh] md:h-[500px] max-w-[400px]"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              {/* Front */}
-              <div
-                className="absolute inset-0 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-12 flex flex-col items-center justify-center border-4 border-purple-200 dark:border-purple-800"
-                style={{ backfaceVisibility: 'hidden' }}
-              >
-                <div className="text-5xl md:text-6xl mb-6 md:mb-8">{selectedSubject.icon}</div>
-                <h3 className="text-xl md:text-3xl font-black text-center text-gray-900 dark:text-white mb-4">
-                  {currentCard.front}
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  {language === 'kz' ? 'Басып көріңіз' : 'Нажмите чтобы перевернуть'}
-                </p>
-              </div>
-
-              {/* Back */}
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl shadow-2xl p-8 md:p-12 flex flex-col items-center justify-center border-4 border-purple-400"
-                style={{
-                  backfaceVisibility: 'hidden',
-                  transform: 'rotateY(180deg)'
-                }}
-              >
-                <h3 className="text-xl md:text-3xl font-black text-center text-white mb-6">
-                  {currentCard.back}
-                </h3>
-                {currentCard.hint && (
-                  <p className="text-white/80 text-center text-sm">
-                    💡 {currentCard.hint}
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Action buttons */}
-        {isFlipped && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center gap-4 md:gap-8 mt-6 md:mt-8 flex-wrap"
-          >
-            <button
-              onClick={() => handleSwipe('left')}
-              className="group flex items-center justify-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 text-sm md:text-base"
-            >
-              <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">{language === 'kz' ? 'Үйренуде' : 'Учу'}</span>
-              <span className="sm:hidden">👈</span>
-            </button>
-
-            <button
-              onClick={() => handleSwipe('right')}
-              className="group flex items-center justify-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 text-sm md:text-base"
-            >
-              <span className="hidden sm:inline">{language === 'kz' ? 'Білемін' : 'Знаю'}</span>
-              <span className="sm:hidden">👉</span>
-              <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </motion.div>
-        )}
-
-        {/* Swipe hints */}
-        {!isFlipped && (
-          <div className="flex justify-between mt-12 px-8">
-            <div className="flex items-center gap-2 text-red-500 opacity-50">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-bold">{language === 'kz' ? 'Үйренуде' : 'Учу'}</span>
-            </div>
-            <div className="flex items-center gap-2 text-green-500 opacity-50">
-              <span className="font-bold">{language === 'kz' ? 'Білемін' : 'Знаю'}</span>
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const percent = Math.round((reviewed / cards.length) * 100)
+  return <div className={shell}><div className="mx-auto max-w-4xl px-5 py-7 sm:px-8 sm:py-10"><header className="flex items-center justify-between border-b border-[#dce5df] pb-5 dark:border-white/10"><button onClick={() => setSelected(null)} className="inline-flex items-center gap-2 text-sm font-bold text-[#00715c] dark:text-[#c9f53e]"><Icon className="h-4 w-4"><path d="m14 6-6 6 6 6" /></Icon>{c.back}</button><strong className="text-sm">{position + 1} / {cards.length}</strong></header>
+  <div className="mt-6"><div className="flex justify-between text-[10px] font-bold uppercase tracking-[.16em] text-[#7b8480] dark:text-white/45"><span>{c.progress}</span><span>{percent}%</span></div><div className="mt-2 h-1 bg-[#dce5df] dark:bg-white/15"><motion.div className="h-full bg-[#c9f53e]" animate={{ width: percent + '%' }} /></div></div>
+  {position === 0 && reviewed === 0 && <div className="mt-6 flex flex-wrap gap-2">{[['all',c.all],['new',c.new],['learning',c.learning],['review',c.review]].map(([value,label]) => <button key={value} onClick={() => changeFilter(value)} className={filter === value ? 'bg-[#003f34] px-3 py-2 text-xs font-bold text-white dark:bg-[#c9f53e] dark:text-[#003f34]' : 'border border-[#dce5df] px-3 py-2 text-xs font-bold dark:border-white/15'}>{label}</button>)}</div>}
+  <div className="mx-auto mt-8 max-w-2xl"><AnimatePresence mode="wait"><motion.div key={card.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}><button onClick={() => { if (!flipped) { setFlipped(true); playSound('flip') } }} className="relative h-[410px] w-full cursor-pointer [perspective:1200px] sm:h-[460px]"><motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ type: 'spring', stiffness: 180, damping: 19 }} className="relative h-full w-full [transform-style:preserve-3d]"><div className="absolute inset-0 flex flex-col items-center justify-center border border-[#b8c9c0] bg-white p-8 text-center [backface-visibility:hidden] dark:border-white/15 dark:bg-slate-900"><span className="flex h-12 w-12 items-center justify-center bg-[#eef5f0] text-[#00715c] dark:bg-white/10 dark:text-[#c9f53e]"><SubjectIcon name={selected.name_ru} /></span><p className="mt-8 text-2xl font-semibold leading-tight tracking-[-.04em] sm:text-3xl">{card.front}</p><p className="mt-7 text-xs text-[#7b8480] dark:text-white/45">{c.flip}</p></div><div className="absolute inset-0 flex flex-col items-center justify-center bg-[#003f34] p-8 text-center text-white [backface-visibility:hidden] [transform:rotateY(180deg)]"><p className="text-2xl font-semibold leading-tight tracking-[-.04em] sm:text-3xl">{card.back}</p>{card.hint && <p className="mt-7 max-w-lg border-l-2 border-[#c9f53e] pl-4 text-left text-sm leading-6 text-white/65">{card.hint}</p>}</div></motion.div></button></motion.div></AnimatePresence></div>
+  {flipped ? <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto mt-6 flex max-w-2xl gap-3"><button onClick={() => reviewCard(false)} className="flex-1 border border-[#b8c9c0] py-4 text-sm font-bold text-[#5d6763] hover:border-[#aa3934] hover:text-[#aa3934] dark:border-white/20 dark:text-white/70">{c.learn}</button><button onClick={() => reviewCard(true)} className="flex-1 bg-[#c9f53e] py-4 text-sm font-bold text-[#003f34] hover:bg-[#d8ff58]">{c.know}</button></motion.div> : <p className="mt-6 text-center text-xs font-semibold text-[#7b8480] dark:text-white/45">← {c.learn} &nbsp;&nbsp; · &nbsp;&nbsp; {c.know} →</p>}
+  </div></div>
 }
